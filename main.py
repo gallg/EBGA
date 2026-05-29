@@ -38,14 +38,14 @@ def test_regressor():
     print("\nTraining regressor on diabetes dataset...")
     print("Using compact version (no L1/L2 regularization)")
     model = CompactGeneticDescentRegressor(
-        n_bins=15,
-        max_iter=500,
+        n_bins=7,
+        max_iter=2000,
         lr_mu=0.01,
-        lr_sigma=0.001,
-        entropy_awareness=0.05,
+        lr_sigma=0.01,
+        entropy_awareness=1.0,
         calibration_interval=20,
-        credit_factor=2.0,
-        early_stopping=True,
+        credit_factor=10.0,
+        early_stopping=False,
         patience=30,
         calibration_size=30,
         random_state=42
@@ -89,13 +89,13 @@ def test_classifier():
     
     print("Using compact version (no L2 regularization)")
     model_iris = CompactGeneticDescentClassifier(
-        max_iter=500,
+        max_iter=2000,
         lr_mu=0.01,
-        lr_sigma=0.001,
-        entropy_awareness=0.05,
+        lr_sigma=0.01,
+        entropy_awareness=1.0,
         calibration_interval=20,
-        credit_factor=2.0,
-        early_stopping=True,
+        credit_factor=10.0,
+        early_stopping=False,
         patience=30,
         calibration_size=30,
         random_state=42
@@ -120,13 +120,13 @@ def test_classifier():
     X_test_scaled = scaler.transform(X_test)
     
     model_cancer = CompactGeneticDescentClassifier(
-        max_iter=500,
+        max_iter=2000,
         lr_mu=0.01,
-        lr_sigma=0.001,
-        entropy_awareness=0.05,
+        lr_sigma=0.01,
+        entropy_awareness=1.0,
         calibration_interval=20,
-        credit_factor=2.0,
-        early_stopping=True,
+        credit_factor=10.0,
+        early_stopping=False,
         patience=30,
         calibration_size=30,
         random_state=42
