@@ -1,141 +1,177 @@
+#!/usr/bin/env python3
+"""
+Main test script for Compact Genetic Descent models.
+Tests both regressor and classifier on benchmark datasets.
+"""
+
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.datasets import fetch_openml
+from sklearn.datasets import load_diabetes, load_iris, load_breast_cancer
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from EBGA.GDGenerator import EvolutionaryAutoencoder
-import os
-import importlib
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    mean_squared_error, r2_score, 
+    accuracy_score, classification_report
+)
+from EBGA.GDRegressor import CompactGeneticDescentRegressor
+from EBGA.GDClassifier import CompactGeneticDescentClassifier
 
-# Reload the module to ensure we have the latest changes
-import EBGA.GDGenerator
-importlib.reload(EBGA.GDGenerator)
-from EBGA.GDGenerator import EvolutionaryAutoencoder
 
-def load_mnist():
-    """Load MNIST dataset and preprocess it."""
-    print("Loading MNIST dataset...")
-    mnist = fetch_openml('mnist_784', version=1, as_frame=False)
-    X, y = mnist.data, mnist.target
-    # Normalize to [0, 1] and reshape
-    X = X / 255.0
-    X = X.reshape(-1, 28, 28)
-    return X, y
-
-def visualize_reconstructions(model, X_test, n_samples=5, save_path=None):
-    """Visualize original and reconstructed images."""
-    fig, axes = plt.subplots(2, n_samples, figsize=(12, 5))
-
-    # Randomly select samples
-    indices = np.random.choice(len(X_test), n_samples, replace=False)
-
-    for i, idx in enumerate(indices):
-        # Original image (already 2D)
-        axes[0, i].imshow(X_test[idx], cmap='gray')
-        axes[0, i].set_title('Original')
-        axes[0, i].axis('off')
-
-        # Reconstructed image (ensure 2D)
-        recon = model.reconstruct(X_test[idx])
-        if len(recon.shape) == 3 and recon.shape[0] == 1:  # If shape is (1, 28, 28)
-            recon = recon[0]  # Remove the batch dimension
-        axes[1, i].imshow(recon, cmap='gray')
-        axes[1, i].set_title('Reconstruction')
-        axes[1, i].axis('off')
-
-    plt.suptitle('Original vs Reconstructed Images')
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(os.path.join(save_path, 'reconstructions.png'))
-    plt.show()
-
-def visualize_generated_samples(model, n_samples=5, save_path=None):
-    """Visualize generated samples."""
-    fig, axes = plt.subplots(1, n_samples, figsize=(10, 2))
-
-    # Generate and display samples
-    samples = model.generate(n_samples)
-    if len(samples.shape) == 3 and samples.shape[0] == n_samples:  # If shape is (n_samples, 28, 28)
-        for i in range(n_samples):
-            axes[i].imshow(samples[i], cmap='gray')
-            axes[i].axis('off')
-    else:  # If shape is different, try to reshape
-        samples = np.reshape(samples, (n_samples, 28, 28))
-        for i in range(n_samples):
-            axes[i].imshow(samples[i], cmap='gray')
-            axes[i].axis('off')
-
-    plt.suptitle('Generated Samples')
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(os.path.join(save_path, 'generated_samples.png'))
-    plt.show()
-
-def plot_loss_history(loss_history, target_loss, save_path=None):
-    """Plot the loss history."""
-    plt.figure(figsize=(8, 4))
-    plt.plot(loss_history, label='Loss')
-    plt.axhline(y=target_loss, color='r', linestyle='--', label='Target Loss')
-    plt.xlabel('Iteration')
-    plt.ylabel('Loss')
-    plt.title(f'Training Progress ({loss_history[0]:.4f} → {loss_history[-1]:.4f})')
-    plt.legend()
-    if save_path:
-        plt.savefig(os.path.join(save_path, 'loss_history.png'))
-    plt.show()
-
-def main():
-    # Create output directory
-    output_dir = 'results_autoencoder'
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Load and preprocess MNIST
-    X, _ = load_mnist()
-
-    # Use a subset for faster training
-    X_train, X_test = train_test_split(X, test_size=0.99, random_state=42)  # Using 1% for training
-
-    print(f"Training on {len(X_train)} samples, testing on {len(X_test)} samples")
-
-    # Initialize and train the evolutionary autoencoder
-    print("Initializing evolutionary autoencoder...")
-    model = EvolutionaryAutoencoder(
-        img_shape=(28, 28),
-        latent_dim=5,
-        target_loss=0.04,
-        loss_metric='mae',
-        lr_mu=0.009,
+def test_regressor():
+    """Test CompactGeneticDescentRegressor on diabetes dataset."""
+    print("=" * 60)
+    print("Testing CompactGeneticDescentRegressor")
+    print("=" * 60)
+    
+    # Load and prepare data
+    diabetes = load_diabetes()
+    X, y = diabetes.data, diabetes.target
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    # Standardize data
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    
+    # Create and train model with improved parameters
+    print("\nTraining regressor on diabetes dataset...")
+    print("Using compact version (no L1/L2 regularization)")
+    model = CompactGeneticDescentRegressor(
+        n_bins=15,
+        max_iter=500,
+        lr_mu=0.01,
         lr_sigma=0.001,
-        sigma_min=0.01,
-        sigma_max=1.0,
-        calibration_interval=25,
+        entropy_awareness=0.05,
+        calibration_interval=20,
         credit_factor=2.0,
-        calibration_size=20,
+        early_stopping=True,
+        patience=30,
+        calibration_size=30,
         random_state=42
     )
+    model.fit(X_train, y_train)
+    
+    # Evaluate
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    
+    print(f"\nTest Results:")
+    print(f"  MSE: {mse:.4f}")
+    print(f"  R²: {r2:.4f}")
+    
+    # Show some sample predictions
+    print(f"\nSample predictions (first 5 test samples):")
+    for i in range(5):
+        print(f"  True: {y_test[i]:.2f}, Predicted: {y_pred[i]:.2f}")
+    
+    return model, mse, r2
 
-    print("Training evolutionary autoencoder...")
-    # Train on a batch of samples for more stable training
-    loss_history = model.fit(X_train[:100])  # Use first 100 samples
 
-    # Visualize results
-    print("Training completed. Visualizing results...")
+def test_classifier():
+    """Test CompactGeneticDescentClassifier on iris and breast cancer datasets."""
+    print("\n" + "=" * 60)
+    print("Testing CompactGeneticDescentClassifier")
+    print("=" * 60)
+    
+    # Test on Iris dataset (multi-class)
+    print("\n--- Iris Dataset (Multi-class) ---")
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    print("Using compact version (no L2 regularization)")
+    model_iris = CompactGeneticDescentClassifier(
+        max_iter=500,
+        lr_mu=0.01,
+        lr_sigma=0.001,
+        entropy_awareness=0.05,
+        calibration_interval=20,
+        credit_factor=2.0,
+        early_stopping=True,
+        patience=30,
+        calibration_size=30,
+        random_state=42
+    )
+    model_iris.fit(X_train_scaled, y_train)
+    
+    y_pred_iris = model_iris.predict(X_test_scaled)
+    acc_iris = accuracy_score(y_test, y_pred_iris)
+    print(f"Accuracy: {acc_iris:.4f}")
+    print(f"Classification Report:\n{classification_report(y_test, y_pred_iris)}")
+    
+    # Test on Breast Cancer dataset (binary classification)
+    print("\n--- Breast Cancer Dataset (Binary) ---")
+    cancer = load_breast_cancer()
+    X, y = cancer.data, cancer.target
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    model_cancer = CompactGeneticDescentClassifier(
+        max_iter=500,
+        lr_mu=0.01,
+        lr_sigma=0.001,
+        entropy_awareness=0.05,
+        calibration_interval=20,
+        credit_factor=2.0,
+        early_stopping=True,
+        patience=30,
+        calibration_size=30,
+        random_state=42
+    )
+    model_cancer.fit(X_train_scaled, y_train)
+    
+    y_pred_cancer = model_cancer.predict(X_test_scaled)
+    acc_cancer = accuracy_score(y_test, y_pred_cancer)
+    print(f"Accuracy: {acc_cancer:.4f}")
+    print(f"Classification Report:\n{classification_report(y_test, y_pred_cancer)}")
+    
+    return model_iris, acc_iris, model_cancer, acc_cancer
 
-    # Plot training progress
-    plot_loss_history(loss_history, model.target_loss, save_path=output_dir)
 
-    # Show reconstructions
-    visualize_reconstructions(model, X_test, save_path=output_dir)
+def main():
+    """Run all tests."""
+    print("Compact Genetic Descent - Benchmark Tests")
+    print("=" * 60)
+    print("Note: These models use the SIMPLIFIED compact version")
+    print("(L1/L2 regularization has been removed)")
+    print("Relying on sigma (σ) and entropy_awareness for natural regularization")
+    print("=" * 60)
+    
+    # Test regressor
+    regressor_model, mse, r2 = test_regressor()
+    
+    # Test classifier
+    classifier_iris, acc_iris, classifier_cancer, acc_cancer = test_classifier()
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+    print(f"\nRegressor (Diabetes):")
+    print(f"  MSE: {mse:.4f}")
+    print(f"  R²: {r2:.4f}")
+    print(f"\nClassifier (Iris - Multi-class):")
+    print(f"  Accuracy: {acc_iris:.4f}")
+    print(f"\nClassifier (Breast Cancer - Binary):")
+    print(f"  Accuracy: {acc_cancer:.4f}")
+    print("\n" + "=" * 60)
+    print("All tests completed successfully!")
+    print("Models are simplified (no L1/L2 regularization, using entropy_awareness)")
+    print("=" * 60)
 
-    # Show generated samples
-    visualize_generated_samples(model, save_path=output_dir)
 
-    # Save model and results
-    np.save(os.path.join(output_dir, 'mu.npy'), model.mu)
-    np.save(os.path.join(output_dir, 'sigma.npy'), model.sigma)
-    np.save(os.path.join(output_dir, 'loss_history.npy'), loss_history)
-
-    print("All done! Results saved in:", output_dir)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

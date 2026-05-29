@@ -8,7 +8,7 @@ def create_bins(y, n_bins):
     return np.linspace(y.min() - 0.1 * y_range, y.max() + 0.1 * y_range, n_bins + 1)
 
 
-def calculate_loss(params, X, y, bin_edges, lambda_surprise, n_bins):
+def calculate_loss(params, X, y, bin_edges, entropy_awareness, n_bins):
     """
     Calculate the loss function for CGD.
 
@@ -17,7 +17,7 @@ def calculate_loss(params, X, y, bin_edges, lambda_surprise, n_bins):
     - X: input features
     - y: target values
     - bin_edges: bin edges for discretization
-    - lambda_surprise: weight for surprise term
+    - entropy_awareness: weight for entropy term (uncertainty awareness)
     - n_bins: number of bins
 
     Returns:
@@ -43,5 +43,5 @@ def calculate_loss(params, X, y, bin_edges, lambda_surprise, n_bins):
     entropy = -np.sum(P * np.log(P + 1e-10), axis=1)
     surprise_loss = np.mean(entropy)
 
-    return ce_loss + lambda_surprise * surprise_loss
+    return ce_loss + entropy_awareness * surprise_loss
 

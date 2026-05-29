@@ -23,8 +23,8 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
         Learning rate for mean parameters.
     lr_sigma : float, default=0.005
         Learning rate for standard deviation.
-    lambda_surprise : float, default=0.1
-        Weight for surprise term in loss.
+    entropy_awareness : float, default=0.1
+        Weight for entropy term in loss (surprise/uncertainty awareness).
     sigma_min/max : float, default=0.01/1.0
         Bounds for standard deviation.
     calibration_interval : int, default=25
@@ -42,7 +42,7 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
     """
 
     def __init__(self, n_bins=10, max_iter=500, lr_mu=0.05, lr_sigma=0.005,
-                 lambda_surprise=0.1, sigma_min=0.01, sigma_max=1.0,
+                 entropy_awareness=0.1, sigma_min=0.01, sigma_max=1.0,
                  calibration_interval=25, credit_factor=2.0,
                  early_stopping=True, patience=20, calibration_size=20,
                  random_state=None):
@@ -51,7 +51,7 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
         self.max_iter = max_iter
         self.lr_mu = lr_mu
         self.lr_sigma = lr_sigma
-        self.lambda_surprise = lambda_surprise
+        self.entropy_awareness = entropy_awareness
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.calibration_interval = calibration_interval
@@ -105,7 +105,7 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
             # Early stopping check
             if self.early_stopping:
                 current_loss = calculate_loss(self.mu_, X, y, self.bin_edges_,
-                                            self.lambda_surprise, self.n_bins)
+                                            self.entropy_awareness, self.n_bins)
                 if current_loss < best_loss:
                     best_loss, patience_counter = current_loss, 0
                 else:
@@ -118,7 +118,7 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
         noise = self._random_state.randn(self.calibration_size, len(self.mu_))
         perturbed = self.mu_ + self.sigma_ * noise
         losses = np.array([calculate_loss(p, X, y, self.bin_edges_,
-                                        self.lambda_surprise, self.n_bins)
+                                        self.entropy_awareness, self.n_bins)
                           for p in perturbed])
 
         # Update distribution parameters
@@ -138,9 +138,9 @@ class CompactGeneticDescentRegressor(BaseEstimator, RegressorMixin):
         theta2 = self.mu_ + self.sigma_ * self._random_state.randn(len(self.mu_))
 
         loss1 = calculate_loss(theta1, X, y, self.bin_edges_,
-                             self.lambda_surprise, self.n_bins)
+                             self.entropy_awareness, self.n_bins)
         loss2 = calculate_loss(theta2, X, y, self.bin_edges_,
-                             self.lambda_surprise, self.n_bins)
+                             self.entropy_awareness, self.n_bins)
 
         # Determine winner and loser
         winner, loser = (theta1, theta2) if loss1 < loss2 else (theta2, theta1)

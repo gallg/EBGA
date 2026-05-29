@@ -9,10 +9,8 @@ import numpy as np
 
 class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
     """
-    Compact Genetic Descent Classifier for classification tasks.
-
-    Implements an efficient distribution-based evolutionary algorithm
-    that eliminates explicit population storage.
+    Compact Genetic Descent Classifier - A simplified distribution-based evolutionary algorithm
+    for classification tasks that eliminates explicit population storage and regularization.
 
     Parameters
     ----------
@@ -36,8 +34,8 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
         Number of iterations without improvement before early stopping.
     calibration_size : int, default=20
         Number of samples for periodic calibration.
-    lambda_l2 : float, default=0.0
-        L2 regularization strength.
+    entropy_awareness : float, default=0.1
+        Weight for entropy term in loss for uncertainty calibration.
     random_state : int, default=None
         Random state for reproducibility.
     """
@@ -45,7 +43,7 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self, max_iter=500, lr_mu=0.05, lr_sigma=0.005,
                  sigma_min=0.01, sigma_max=1.0, calibration_interval=25,
                  credit_factor=2.0, early_stopping=True, patience=20,
-                 calibration_size=20, lambda_l2=0.0, random_state=None):
+                 calibration_size=20, entropy_awareness=0.1, random_state=None):
 
         self.max_iter = max_iter
         self.lr_mu = lr_mu
@@ -57,7 +55,7 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
         self.early_stopping = early_stopping
         self.patience = patience
         self.calibration_size = calibration_size
-        self.lambda_l2 = lambda_l2
+        self.entropy_awareness = entropy_awareness
         self.random_state = random_state
 
     def fit(self, X, y):
@@ -89,9 +87,11 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
         self.n_classes_ = len(self.classes_)
 
         # Handle binary classification case
-        if self.n_classes_ == 2:
+        if self.n_classes_ == 2 and y_onehot.shape[1] == 1:
+            # Already in single column format for binary
+            pass
+        elif self.n_classes_ == 2 and y_onehot.shape[1] == 2:
             y_onehot = y_onehot[:, [1]]  # Take only positive class probabilities
-            self.n_classes_ = 2  # Keep track of binary case
 
         # Initialize model parameters
         self._initialize_parameters(X)
@@ -146,8 +146,11 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
         z = X @ W.T + b
 
         # Handle binary classification case
-        if len(self.classes_) == 2:
-            z = np.hstack([-z, z])  # Convert to two columns
+        # For binary with single output, we need to convert to two classes
+        if len(self.classes_) == 2 and self.n_classes_ == 2:
+            # Check if we have single column output (binary classification)
+            if z.shape[1] == 1:
+                z = np.hstack([-z, z])  # Convert to two columns
 
         return softmax(z, axis=1)
 
@@ -203,19 +206,22 @@ class CompactGeneticDescentClassifier(BaseEstimator, ClassifierMixin):
         z = X @ W.T + b
 
         # Handle binary classification case
+        # For binary with single output, convert to two classes
         if y.shape[1] == 1:  # Binary case has single column
-            z = np.hstack([-z, z])
+            if z.shape[1] == 1:
+                z = np.hstack([-z, z])
 
         P = softmax(z, axis=1)
 
         # Cross-entropy loss
         ce_loss = -np.mean(np.sum(y * np.log(P + 1e-10), axis=1))
 
-        # L2 regularization
-        if self.lambda_l2 > 0:
-            ce_loss += self.lambda_l2 * np.sum(W**2)
+        # Surprise (entropy) term for uncertainty calibration
+        entropy = -np.sum(P * np.log(P + 1e-10), axis=1)
+        surprise_loss = np.mean(entropy)
 
-        return ce_loss
+        # Total loss (simplified - no regularization)
+        return ce_loss + self.entropy_awareness * surprise_loss
 
     def _train_loop(self, X, y):
         """Main training loop."""
