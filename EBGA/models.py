@@ -1,8 +1,3 @@
-"""
-Model classes for EBGA framework.
-Provides unified interface for both regression and classification.
-"""
-
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -18,37 +13,6 @@ from EBGA.optimizer import CompactEvoOptimizer
 
 
 class BaseModel(BaseEstimator):
-    """
-    Base class for EBGA models.
-    
-    Parameters:
-        layers: list of tuples or Sequential
-            Network architecture. Each tuple is (output_size, activation)
-        output_activation: str, default='linear'
-            Activation for output layer
-        lr_mu: float, default=0.05
-            Learning rate for mean
-        lr_sigma: float, default=0.005
-            Learning rate for sigma
-        sigma_min: float, default=0.001
-            Minimum sigma
-        sigma_max: float, default=1.0
-            Maximum sigma
-        calibration_size: int, default=20
-            Population size for calibration
-        calibration_interval: int, default=25
-            Calibration frequency
-        credit_factor: float, default=2.0
-            Credit assignment strength
-        max_iter: int, default=500
-            Maximum iterations
-        early_stopping: bool, default=True
-            Enable early stopping
-        patience: int, default=20
-            Patience for early stopping
-        random_state: int, optional
-            Random seed
-    """
     
     def __init__(self, layers=None, output_activation='linear',
                  lr_mu=0.05, lr_sigma=0.005, sigma_min=0.001, sigma_max=1.0,
@@ -79,7 +43,6 @@ class BaseModel(BaseEstimator):
         self.n_classes_ = None
     
     def _build_network(self, input_size, output_size):
-        """Build the neural network."""
         network_layers = []
         
         if self.layers is None or len(self.layers) == 0:
@@ -100,7 +63,6 @@ class BaseModel(BaseEstimator):
         return Sequential(*network_layers)
     
     def _create_loss_func(self, X, y):
-        """Create a loss function closure."""
         def loss_func(params):
             self.network_.set_all_parameters(params)
             y_pred = self.network_.forward(X)
@@ -220,7 +182,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
             self.loss_ = loss
     
     def _build_layers_from_params(self):
-        """Build layer specification from simple parameters."""
         layers = []
         for i in range(self.n_layers):
             layers.append((self.h_dim, self.inner_activation))
@@ -229,7 +190,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         return layers
     
     def fit(self, X, y):
-        """Fit the model to training data."""
         X, y = check_X_y(X, y)
         self._random_state = check_random_state(self.random_state)
         self.n_features_ = X.shape[1]
@@ -254,11 +214,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         return self
     
     def _fit_layer_wise(self, X, y):
-        """Layer-wise training with plateau detection.
-        
-        Trains layers sequentially: first layer until loss plateaus,
-        then second layer, etc. until the last layer.
-        """
         n_layers = len(self.network_.layers)
         
         # Initialize all layers
@@ -386,7 +341,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         self.optimizer_ = final_optimizer  # Store optimizer for reference
     
     def predict(self, X):
-        """Predict target values."""
         check_is_fitted(self)
         X = check_array(X)
         output = self.network_.forward(X)
@@ -400,7 +354,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         return output
     
     def score(self, X, y):
-        """Calculate R² score."""
         return r2_score(y, self.predict(X))
 
 
@@ -511,7 +464,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             self.loss_ = loss
     
     def _build_layers_from_params(self):
-        """Build layer specification from simple parameters."""
         layers = []
         for i in range(self.n_layers):
             layers.append((self.h_dim, self.inner_activation))
@@ -520,7 +472,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         return layers
     
     def fit(self, X, y):
-        """Fit the model to training data."""
         X, y = check_X_y(X, y)
         self._random_state = check_random_state(self.random_state)
         self.n_features_ = X.shape[1]
@@ -545,7 +496,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         return self
     
     def _fit_layer_wise_classifier(self, X, y_onehot):
-        """Layer-wise training with plateau detection for classifier."""
         n_layers = len(self.network_.layers)
         
         # Initialize all layers
@@ -676,7 +626,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         self.optimizer_ = final_optimizer  # Store optimizer for reference
     
     def predict(self, X):
-        """Predict class labels."""
         check_is_fitted(self)
         X = check_array(X)
         output = self.network_.forward(X)
@@ -684,7 +633,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         return np.argmax(output, axis=1)
     
     def predict_proba(self, X):
-        """Predict class probabilities."""
         check_is_fitted(self)
         X = check_array(X)
         output = self.network_.forward(X)
@@ -694,5 +642,4 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         return output
     
     def score(self, X, y):
-        """Calculate accuracy score."""
         return accuracy_score(y, self.predict(X))

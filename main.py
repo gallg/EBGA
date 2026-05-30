@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""
-EBGA Neural Network Framework - Main Test Runner
-
-This script runs tests on standard datasets using explicit layer specifications
-dto demonstrate the framework's capabilities.
-
-Usage:
-    python main.py              # Run all tests
-    python main.py --help      # Show this help
-
-Framework Features:
-  ✓ Completely gradient-free (no backpropagation)
-  ✓ Modular neural network architecture
-  ✓ Layer-wise training with plateau detection
-  ✓ Works for both regression and classification
-  ✓ Configurable via explicit layer specification
-"""
 
 import sys
 import os
@@ -25,25 +8,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
 def run_iris_test():
-    """Run Iris classification test."""
     from tests.test_iris import run_test
     return run_test()
 
 
 def run_breast_cancer_test():
-    """Run Breast Cancer classification test."""
     from tests.test_breast_cancer import run_test
     return run_test()
 
 
 def run_wine_test():
-    """Run Wine classification test."""
     from tests.test_wine import run_test
     return run_test()
 
 
 def main():
-    """Run all tests and display results."""
     print("=" * 70)
     print("EBGA FRAMEWORK - TEST SUITE")
     print("Evolutionary-Based Gradient-free Architecture")

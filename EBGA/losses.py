@@ -1,38 +1,28 @@
-"""
-Loss functions for EBGA framework.
-"""
-
 import numpy as np
 
 
 class Loss:
-    """Base class for loss functions."""
     
     def __call__(self, y_pred, y_true):
-        """Compute loss."""
         return self.forward(y_pred, y_true)
     
     def forward(self, y_pred, y_true):
-        """Forward pass. To be implemented by subclasses."""
         raise NotImplementedError
 
 
 class MSE(Loss):
-    """Mean Squared Error loss for regression."""
     
     def forward(self, y_pred, y_true):
         return np.mean((y_true - y_pred) ** 2)
 
 
 class MAE(Loss):
-    """Mean Absolute Error loss for regression."""
     
     def forward(self, y_pred, y_true):
         return np.mean(np.abs(y_true - y_pred))
 
 
 class CrossEntropy(Loss):
-    """Cross-entropy loss for classification."""
     
     def forward(self, y_pred, y_true):
         # y_pred: probabilities (after softmax), shape (n_samples, n_classes)
@@ -42,7 +32,6 @@ class CrossEntropy(Loss):
 
 
 class BinaryCrossEntropy(Loss):
-    """Binary cross-entropy loss."""
     
     def forward(self, y_pred, y_true):
         eps = 1e-10
@@ -60,7 +49,6 @@ LOSS_REGISTRY = {
 
 
 def get_loss(name):
-    """Get loss function by name."""
     if name not in LOSS_REGISTRY:
         raise ValueError(f"Unknown loss: {name}. Available: {list(LOSS_REGISTRY.keys())}")
     return LOSS_REGISTRY[name]()

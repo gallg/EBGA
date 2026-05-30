@@ -1,28 +1,19 @@
-"""
-Activation functions for EBGA framework.
-"""
-
 import numpy as np
 
 
 class Activation:
-    """Base class for activation functions."""
     
     def __call__(self, x):
-        """Apply activation function."""
         return self.forward(x)
     
     def forward(self, x):
-        """Forward pass. To be implemented by subclasses."""
         raise NotImplementedError
     
     def backward(self, x):
-        """Backward pass (derivative). Not used in gradient-free framework but provided for completeness."""
         raise NotImplementedError
 
 
 class ReLU(Activation):
-    """Rectified Linear Unit activation."""
     
     def forward(self, x):
         return np.maximum(0, x)
@@ -32,7 +23,6 @@ class ReLU(Activation):
 
 
 class Sigmoid(Activation):
-    """Sigmoid activation."""
     
     def forward(self, x):
         return 1 / (1 + np.exp(-x))
@@ -43,7 +33,6 @@ class Sigmoid(Activation):
 
 
 class Tanh(Activation):
-    """Hyperbolic tangent activation."""
     
     def forward(self, x):
         return np.tanh(x)
@@ -53,7 +42,6 @@ class Tanh(Activation):
 
 
 class Linear(Activation):
-    """Linear (identity) activation."""
     
     def forward(self, x):
         return x
@@ -63,7 +51,6 @@ class Linear(Activation):
 
 
 class Softmax(Activation):
-    """Softmax activation for multi-class classification."""
     
     def forward(self, x, axis=-1):
         # Subtract max for numerical stability
@@ -86,7 +73,6 @@ ACTIVATION_REGISTRY = {
 
 
 def get_activation(name):
-    """Get activation function by name."""
     if name not in ACTIVATION_REGISTRY:
         raise ValueError(f"Unknown activation: {name}. Available: {list(ACTIVATION_REGISTRY.keys())}")
     return ACTIVATION_REGISTRY[name]()

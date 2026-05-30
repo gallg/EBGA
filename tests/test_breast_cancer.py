@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Test script for Breast Cancer Wisconsin dataset classification using EBGA.
-Uses explicit layer specification.
-"""
 
 import numpy as np
 from sklearn.datasets import load_breast_cancer
@@ -14,7 +10,6 @@ from EBGA.models import EBGAClassifier
 
 
 def run_test(random_state=42):
-    """Run Breast Cancer classification test with explicit layers."""
     # Set global random seed for reproducibility
     np.random.seed(random_state)
     

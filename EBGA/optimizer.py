@@ -1,8 +1,3 @@
-"""
-Optimizer module for EBGA framework.
-Implements the CompactEvoOptimizer using distribution-based evolutionary optimization.
-"""
-
 import numpy as np
 
 
@@ -60,12 +55,6 @@ class CompactEvoOptimizer:
         self.sigma = None
     
     def initialize(self, initial_params=None):
-        """
-        Initialize the distribution.
-        
-        Args:
-            initial_params: Optional initial parameter values
-        """
         if initial_params is not None:
             self.mu = np.array(initial_params, dtype=float)
         else:
@@ -74,26 +63,12 @@ class CompactEvoOptimizer:
         self.sigma = np.ones(self.param_dim) * 0.1
     
     def step(self, loss_func, iteration=None):
-        """
-        Perform one optimization step.
-        
-        Args:
-            loss_func: Callable that computes loss given parameters
-            iteration: Current iteration number (for calibration scheduling)
-        
-        Returns:
-            Average loss from the samples evaluated
-        """
         if iteration is None or iteration % self.calibration_interval == 0:
             return self._population_calibration_step(loss_func)
         else:
             return self._pairwise_update_step(loss_func)
     
     def _population_calibration_step(self, loss_func):
-        """
-        Perform a population calibration step.
-        Uses natural gradient update for Gaussian distribution.
-        """
         noise = self.rng.randn(self.calibration_size, self.param_dim)
         perturbed = self.mu + self.sigma * noise
         
@@ -112,10 +87,6 @@ class CompactEvoOptimizer:
         return np.mean(losses)
     
     def _pairwise_update_step(self, loss_func):
-        """
-        Perform a pairwise update step.
-        Samples two candidates, determines winner/loser, updates distribution.
-        """
         # Sample two candidates
         theta1 = self.mu + self.sigma * self.rng.randn(self.param_dim)
         theta2 = self.mu + self.sigma * self.rng.randn(self.param_dim)
@@ -153,19 +124,15 @@ class CompactEvoOptimizer:
         return (loss1 + loss2) / 2
     
     def get_parameters(self):
-        """Get current mean parameters."""
         return self.mu
     
     def get_distribution_parameters(self):
-        """Get both mu and sigma."""
         return self.mu, self.sigma
     
     def set_parameters(self, params):
-        """Set the mean parameters."""
         self.mu = np.array(params)
     
     def state_dict(self):
-        """Get optimizer state as a dictionary."""
         return {
             'mu': self.mu,
             'sigma': self.sigma,
@@ -176,7 +143,6 @@ class CompactEvoOptimizer:
         }
     
     def load_state_dict(self, state_dict):
-        """Load optimizer state from a dictionary."""
         self.mu = state_dict['mu']
         self.sigma = state_dict['sigma']
         self.lr_mu = state_dict.get('lr_mu', self.lr_mu)
