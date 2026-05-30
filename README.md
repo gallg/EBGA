@@ -1,6 +1,6 @@
 # EBGA: Evolutionary-Based Gradient-Free Architecture
 
-**EBGA** (**E**nergy-**B**ased **G**enetic **A**lgorithms) is a gradient-free optimization framework that combines evolutionary computation with compact genetic algorithms.
+**EBGA** (**E**volutionary-**B**ased **G**radient-free **A**rchitecture) is a gradient-free optimization framework that combines evolutionary computation with compact evolutionary algorithms.
 
 ## What's Inside
 
@@ -9,17 +9,17 @@ This package provides a **unified neural network framework** for both regression
 🔹 **EBGARegressor** - Gradient-free evolutionary regression with continuous output
 🔹 **EBGAClassifier** - Gradient-free evolutionary classification 
 🔹 **Modular Neural Network Architecture** - Build custom networks with layers, activations, and losses
-🔹 **Layer-wise Training** - Optional sequential layer training with plateau detection
-🔹 **Compact Genetic Descent Optimizer** - Distribution-based parameter evolution
+🔹 **Layer-wise Training** - Sequential layer training with plateau detection (enabled by default)
+🔹 **CompactEvoOptimizer** - Distribution-based parameter evolution
 
 ## Key Features
 
 - ✅ **Completely gradient-free optimization** (no backpropagation)
 - ✅ **Modular architecture** - Similar to PyTorch but gradient-free
 - ✅ **Continuous regression** - No binning, direct continuous output
-- ✅ **Layer-wise training** - Train layers sequentially until loss plateaus
+- ✅ **Layer-wise training** - Train layers sequentially until loss plateaus (default)
 - ✅ **Handles non-differentiable loss functions**
-- ✅ **Built-in uncertainty modeling** via distribution parameters (mu, sigma)
+- ✅ **Built-in uncertainty modeling** via distribution parameters (μ, σ)
 - ✅ **Works with noisy or discontinuous objectives**
 - ✅ **Naturally parallelizable implementation**
 - ✅ **Unified framework** for both regression and classification
@@ -85,17 +85,9 @@ model = EBGARegressor(
 
 # Option 2: Explicit layer specification
 model = EBGARegressor(
-    layers=[(50, 'relu'), (30, 'sigmoid'), (1, 'linear')],
-    max_iter=1000
-)
-
-# Option 3: With layer-wise training
-model = EBGARegressor(
-    n_layers=2,
-    h_dim=50,
-    use_layer_wise=True,      # Enable sequential layer training
-    layer_patience=50,       # Patience for plateau detection
-    max_iter=1000
+    layers=[(50, 'relu'), (30, 'relu'), (1, 'linear')],
+    max_iter=1000,
+    random_state=42
 )
 
 model.fit(X_train, y_train)
@@ -123,12 +115,9 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# Create and train model
+# Create and train model with explicit layers
 model = EBGAClassifier(
-    n_layers=1,
-    h_dim=10,
-    inner_activation='relu',
-    output_activation='softmax',
+    layers=[(10, 'relu'), (10, 'relu'), (3, 'softmax')],
     n_classes=3,
     max_iter=2000,
     random_state=42
@@ -150,7 +139,7 @@ y_proba = model.predict_proba(X_test)
 from EBGA.nn import Sequential
 from EBGA.layers import Linear
 from EBGA.activations import get_activation
-from EBGA.losses import get_loss
+from EBGA.losses import mae_loss
 from EBGA.optimizer import CompactEvoOptimizer
 
 # Build a custom network
@@ -161,7 +150,7 @@ network = Sequential(
 )
 
 # Initialize
-network.initialize(input_size=10)
+network.initialize(input_size=X_train.shape[1])
 
 # Create optimizer
 optimizer = CompactEvoOptimizer(
@@ -183,18 +172,10 @@ for iteration in range(1000):
 
 ## Running Tests
 
-Run the benchmark tests:
+Run the test suite on standard datasets (Iris, Breast Cancer, Wine):
 
 ```bash
 python main.py
-```
-
-This will test both the regressor and classifier on standard datasets (Diabetes, Iris, Breast Cancer) and print performance metrics.
-
-For the IXI brain dataset tests:
-
-```bash
-python test_IXI.py
 ```
 
 ## Framework Architecture
@@ -232,8 +213,9 @@ Available loss functions:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `n_layers` | 1 | Number of hidden layers |
-| `h_dim` | 50 | Size of hidden layers |
+| `layers` | None | Explicit layer specification as list of (size, activation) tuples |
+| `n_layers` | 1 | Number of hidden layers (used if layers=None) |
+| `h_dim` | 50 | Size of hidden layers (used if layers=None) |
 | `inner_activation` | 'relu' | Activation for hidden layers |
 | `output_activation` | 'linear' (reg) / 'softmax' (cls) | Activation for output layer |
 | `max_iter` | 10000 (reg) / 500 (cls) | Maximum iterations |
@@ -246,8 +228,7 @@ Available loss functions:
 | `credit_factor` | 2.0 | Strength of credit assignment |
 | `early_stopping` | True | Enable early stopping |
 | `patience` | 100 (reg) / 20 (cls) | Early stopping patience |
-| `use_layer_wise` | False | Enable layer-wise training |
-| `layer_patience` | 50 | Patience for layer-wise plateau detection |
+| `layer_patience` | 50 | Patience for layer-wise plateau detection (layer-wise training is default) |
 
 ### Regressor-Specific
 
@@ -269,4 +250,6 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-This project is open source. See LICENSE for details.
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).
+
+See [LICENSE](LICENSE) for the full license text.
