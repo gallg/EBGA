@@ -38,6 +38,21 @@ EBGA/
 
 ## Installation
 
+### Option 1: Install from source (recommended)
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd EBGA
+
+# Install in development mode
+pip install -e .
+```
+
+This will install EBGA and all dependencies (numpy, scikit-learn, scipy).
+
+### Option 2: Manual installation
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -49,7 +64,17 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install numpy scikit-learn scipy
+
+# Add to PYTHONPATH
+PYTHONPATH=. python your_script.py
 ```
+
+### Dependencies
+
+- Python 3.8+
+- numpy >= 1.20.0
+- scikit-learn >= 1.0.0
+- scipy >= 1.7.0
 
 ## Quick Start
 

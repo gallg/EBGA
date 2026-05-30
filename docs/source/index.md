@@ -14,11 +14,9 @@
    - [losses](api/losses.md) - Loss functions
    - [optimizer](api/optimizer.md) - CompactEvoOptimizer
 4. **[Tutorials](tutorials.md)** - Step-by-step guides
-5. **[Comparison](comparison.md)** - How EBGA differs from traditional approaches
 
 ## Quick Links
 
-- [Installation Guide](installation.md)
 - [Configuration Guide](configuration.md)
 - [Best Practices](best_practices.md)
 
