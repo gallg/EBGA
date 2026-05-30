@@ -4,8 +4,4 @@
 .obsidian/
 .venv/
 
-data/
 site/
-
-# tests/dataset_analyses
-./test_IXI.py
