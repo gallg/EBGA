@@ -4,8 +4,11 @@ site_author: EBGA Team
 
 use_directory_urls: false
 
+theme:
+  name: mkdocs
+
 docs_dir: docs/source
-site_dir: site
+site_dir: pages
 
 nav:
   - Home: index.md

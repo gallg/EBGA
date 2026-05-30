@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="EBGA Team">
+        
+        <link rel="shortcut icon" href="img/favicon.ico">
+        <title>Core Concepts - EBGA Framework Documentation</title>
+        <link href="css/bootstrap.min.css" rel="stylesheet">
+        <link href="css/fontawesome.min.css" rel="stylesheet">
+        <link href="css/brands.min.css" rel="stylesheet">
+        <link href="css/solid.min.css" rel="stylesheet">
+        <link href="css/v4-font-face.min.css" rel="stylesheet">
+        <link href="css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="index.html">EBGA Framework Documentation</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="index.html" class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="overview.html" class="nav-link">Framework Overview</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="concepts.html" class="nav-link active" aria-current="page">Core Concepts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="tutorials.html" class="nav-link">Tutorials</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="configuration.html" class="nav-link">Configuration Guide</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="best_practices.html" class="nav-link">Best Practices</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="api.html" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="api/models.html" class="dropdown-item">Models</a>
+</li>
+                                    
+<li>
+    <a href="api/nn.html" class="dropdown-item">Neural Network</a>
+</li>
+                                    
+<li>
+    <a href="api/layers.html" class="dropdown-item">Layers</a>
+</li>
+                                    
+<li>
+    <a href="api/activations.html" class="dropdown-item">Activations</a>
+</li>
+                                    
+<li>
+    <a href="api/losses.html" class="dropdown-item">Losses</a>
+</li>
+                                    
+<li>
+    <a href="api/optimizer.html" class="dropdown-item">Optimizer</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="overview.html" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="tutorials.html" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/your-repo/EBGA/edit/master/docs/concepts.md" class="nav-link">Edit on EBGA
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#core-concepts" class="nav-link">Core Concepts</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#compact-genetic-algorithms" class="nav-link">Compact Genetic Algorithms</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#optimization-process" class="nav-link">Optimization Process</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#layer-wise-training" class="nav-link">Layer-Wise Training</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#neural-network-architecture" class="nav-link">Neural Network Architecture</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#high-level-models" class="nav-link">High-Level Models</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#parameter-space-and-optimization" class="nav-link">Parameter Space and Optimization</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#evolution-vs-gradients" class="nav-link">Evolution vs. Gradients</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-to-other-evolutionary-approaches" class="nav-link">Comparison to Other Evolutionary Approaches</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h1>
+<p>This document explains the fundamental concepts behind the EBGA framework.</p>
+<h2 id="compact-genetic-algorithms">Compact Genetic Algorithms<a class="headerlink" href="#compact-genetic-algorithms" title="Permanent link">&para;</a></h2>
+<h3 id="traditional-genetic-algorithms">Traditional Genetic Algorithms<a class="headerlink" href="#traditional-genetic-algorithms" title="Permanent link">&para;</a></h3>
+<p>Traditional Genetic Algorithms (GAs) work as follows:</p>
+<ol>
+<li><strong>Initialize</strong> a population of candidate solutions</li>
+<li><strong>Evaluate</strong> fitness of all candidates</li>
+<li><strong>Select</strong> the best candidates</li>
+<li><strong>Recombine</strong> (crossover) selected candidates</li>
+<li><strong>Mutate</strong> the offspring</li>
+<li><strong>Replace</strong> the population</li>
+<li>Repeat</li>
+</ol>
+<p><strong>Problems:</strong>
+- Memory: O(population_size × parameter_count)
+- Computation: Evaluate entire population each generation
+- Scalability: Doesn't scale well to high dimensions</p>
+<h3 id="compact-genetic-algorithms_1">Compact Genetic Algorithms<a class="headerlink" href="#compact-genetic-algorithms_1" title="Permanent link">&para;</a></h3>
+<p>The <strong>compact</strong> approach (Estximation of Distribution Algorithm, EDA) takes a different approach:</p>
+<ol>
+<li><strong>Model</strong> the population as a probability distribution</li>
+<li><strong>Sample</strong> new candidates from the distribution</li>
+<li><strong>Update</strong> the distribution based on fitness</li>
+<li>Repeat</li>
+</ol>
+<p><strong>Advantages:</strong>
+- Memory: O(parameter_count) - only store distribution parameters
+- Scalability: Works well in high dimensions
+- Efficiency: No need to maintain a population</p>
+<h3 id="the-ebga-approach">The EBGA Approach<a class="headerlink" href="#the-ebga-approach" title="Permanent link">&para;</a></h3>
+<p>EBGA uses a <strong>Gaussian distribution</strong> to model parameters:</p>
+<div class="codehilite"><pre><span></span><code>θ ~ N(μ, diag(σ²))
+</code></pre></div>
+
+<p>Each parameter θ_i has its own mean μ_i and standard deviation σ_i.</p>
+<h2 id="optimization-process">Optimization Process<a class="headerlink" href="#optimization-process" title="Permanent link">&para;</a></h2>
+<h3 id="population-calibration-natural-gradient-step">Population Calibration (Natural Gradient Step)<a class="headerlink" href="#population-calibration-natural-gradient-step" title="Permanent link">&para;</a></h3>
+<p>Periodically, EBGA performs a <strong>population calibration</strong> step:</p>
+<ol>
+<li>Sample <code>calibration_size</code> candidates from N(μ, σ)</li>
+<li>Evaluate loss for each candidate</li>
+<li>Compute natural gradient update for μ and σ</li>
+</ol>
+<p>The update equations are:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Sample candidates</span>
+<span class="n">θ_j</span> <span class="o">=</span> <span class="n">μ</span> <span class="o">+</span> <span class="n">σ</span> <span class="o">*</span> <span class="n">ε_j</span><span class="p">,</span> <span class="n">where</span> <span class="n">ε_j</span> <span class="o">~</span> <span class="n">N</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">I</span><span class="p">)</span>
+
+<span class="c1"># Compute losses</span>
+<span class="n">L_j</span> <span class="o">=</span> <span class="n">loss</span><span class="p">(</span><span class="n">θ_j</span><span class="p">)</span>
+
+<span class="c1"># Natural gradient for mean</span>
+<span class="err">∇</span><span class="n">μ</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">calibration_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">Σ</span> <span class="p">(</span><span class="n">L_j</span> <span class="o">-</span> <span class="n">L̄</span><span class="p">)</span> <span class="o">*</span> <span class="n">ε_j</span>
+<span class="n">μ_new</span> <span class="o">=</span> <span class="n">μ</span> <span class="o">-</span> <span class="n">lr_mu</span> <span class="o">*</span> <span class="err">∇</span><span class="n">μ</span>
+
+<span class="c1"># Natural gradient for variance</span>
+<span class="err">∇</span><span class="n">σ</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">calibration_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">Σ</span> <span class="p">(</span><span class="n">L_j</span> <span class="o">-</span> <span class="n">L̄</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">ε_j</span><span class="err">²</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">σ_new</span> <span class="o">=</span> <span class="n">σ</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="n">lr_sigma</span> <span class="o">*</span> <span class="err">∇</span><span class="n">σ</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This is a <strong>natural gradient</strong> update because it uses the Fisher information matrix of the Gaussian distribution.</p>
+<h3 id="pairwise-update-efficient-step">Pairwise Update (Efficient Step)<a class="headerlink" href="#pairwise-update-efficient-step" title="Permanent link">&para;</a></h3>
+<p>Between calibrations, EBGA performs <strong>pairwise updates</strong>:</p>
+<ol>
+<li>Sample two candidates: θ₁, θ₂ ~ N(μ, σ)</li>
+<li>Evaluate both: L₁ = loss(θ₁), L₂ = loss(θ₂)</li>
+<li>Determine winner (lower loss) and loser</li>
+<li>Update distribution toward winner</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="k">if</span> <span class="n">L</span><span class="err">₁</span> <span class="o">&lt;</span> <span class="n">L</span><span class="err">₂</span><span class="p">:</span>
+    <span class="n">winner</span><span class="p">,</span> <span class="n">loser</span> <span class="o">=</span> <span class="n">θ</span><span class="err">₁</span><span class="p">,</span> <span class="n">θ</span><span class="err">₂</span>
+    <span class="n">winner_loss</span><span class="p">,</span> <span class="n">loser_loss</span> <span class="o">=</span> <span class="n">L</span><span class="err">₁</span><span class="p">,</span> <span class="n">L</span><span class="err">₂</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">winner</span><span class="p">,</span> <span class="n">loser</span> <span class="o">=</span> <span class="n">θ</span><span class="err">₂</span><span class="p">,</span> <span class="n">θ</span><span class="err">₁</span>
+    <span class="n">winner_loss</span><span class="p">,</span> <span class="n">loser_loss</span> <span class="o">=</span> <span class="n">L</span><span class="err">₂</span><span class="p">,</span> <span class="n">L</span><span class="err">₁</span>
+
+<span class="c1"># Credit assignment</span>
+<span class="n">improvement</span> <span class="o">=</span> <span class="p">(</span><span class="n">loser_loss</span> <span class="o">-</span> <span class="n">winner_loss</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">loser_loss</span> <span class="o">+</span> <span class="n">winner_loss</span> <span class="o">+</span> <span class="n">eps</span><span class="p">)</span>
+<span class="n">update_strength</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">credit_factor</span> <span class="o">*</span> <span class="n">tanh</span><span class="p">(</span><span class="n">improvement</span><span class="p">)</span>
+
+<span class="c1"># Update mean</span>
+<span class="n">μ</span> <span class="o">+=</span> <span class="n">lr_mu</span> <span class="o">*</span> <span class="n">update_strength</span> <span class="o">*</span> <span class="p">(</span><span class="n">winner</span> <span class="o">-</span> <span class="n">μ</span><span class="p">)</span>
+
+<span class="c1"># Update variance</span>
+<span class="n">σ</span> <span class="o">*=</span> <span class="n">exp</span><span class="p">(</span><span class="n">lr_sigma</span> <span class="o">*</span> <span class="n">update_strength</span> <span class="o">*</span> <span class="p">(</span><span class="o">|</span><span class="n">winner</span> <span class="o">-</span> <span class="n">loser</span><span class="o">|</span> <span class="o">-</span> <span class="n">σ</span><span class="p">))</span>
+</code></pre></div>
+
+<h2 id="layer-wise-training">Layer-Wise Training<a class="headerlink" href="#layer-wise-training" title="Permanent link">&para;</a></h2>
+<h3 id="the-problem">The Problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
+<p>Training all layers simultaneously in high-dimensional spaces:
+- The optimization landscape becomes extremely complex
+- Hard for evolutionary algorithms to make progress
+- Credit assignment becomes noisy</p>
+<h3 id="the-solution">The Solution<a class="headerlink" href="#the-solution" title="Permanent link">&para;</a></h3>
+<p>EBGA trains layers <strong>sequentially</strong>:</p>
+<ol>
+<li>Train Layer 1 until loss plateaus</li>
+<li>Freeze Layer 1, train Layer 2 until loss plateaus</li>
+<li>Continue until last layer</li>
+<li>Fine-tune all layers together</li>
+</ol>
+<p><strong>Plateau Detection:</strong>
+- Monitor loss for each layer
+- If loss doesn't improve for <code>layer_patience</code> iterations, move to next layer
+- Uses the same loss-based early stopping as the overall training</p>
+<h3 id="benefits">Benefits<a class="headerlink" href="#benefits" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Reduced Complexity</strong>: Each layer optimizes a simpler problem</li>
+<li><strong>Better Feature Learning</strong>: Each layer learns meaningful features before the next</li>
+<li><strong>Faster Convergence</strong>: Avoids the "curse of dimensionality"</li>
+<li><strong>Stability</strong>: Less prone to getting stuck in poor regions</li>
+</ol>
+<h2 id="neural-network-architecture">Neural Network Architecture<a class="headerlink" href="#neural-network-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="building-networks">Building Networks<a class="headerlink" href="#building-networks" title="Permanent link">&para;</a></h3>
+<p>EBGA provides a <strong>modular</strong> neural network builder:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequential</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Linear</span>
+
+<span class="c1"># Build a network</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="c1"># Initialize</span>
+<span class="n">network</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="layer-types">Layer Types<a class="headerlink" href="#layer-types" title="Permanent link">&para;</a></h3>
+<p><strong>Linear Layer:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="n">Linear</span><span class="p">(</span><span class="n">output_size</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span> <span class="n">use_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+
+<ul>
+<li>Fully connected layer</li>
+<li>Xavier/Glorot initialization</li>
+<li>Optional bias</li>
+<li>Configurable activation</li>
+</ul>
+<p><strong>Flatten Layer:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="n">Flatten</span><span class="p">()</span>
+</code></pre></div>
+
+<ul>
+<li>Reshapes input (useful for CNN-like architectures)</li>
+</ul>
+<h3 id="activations">Activations<a class="headerlink" href="#activations" title="Permanent link">&para;</a></h3>
+<p>All standard activations are supported:
+- <code>ReLU</code>: max(0, x)
+- <code>Sigmoid</code>: 1 / (1 + exp(-x))
+- <code>Tanh</code>: (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+- <code>Linear</code>: x (identity)
+- <code>Softmax</code>: exp(x) / sum(exp(x)) (for classification)</p>
+<h3 id="loss-functions">Loss Functions<a class="headerlink" href="#loss-functions" title="Permanent link">&para;</a></h3>
+<p><strong>Regression:</strong>
+- <code>MSE</code>: Mean Squared Error
+- <code>MAE</code>: Mean Absolute Error</p>
+<p><strong>Classification:</strong>
+- <code>CrossEntropy</code>: Cross-entropy loss
+- <code>BinaryCrossEntropy</code>: Binary cross-entropy</p>
+<h2 id="high-level-models">High-Level Models<a class="headerlink" href="#high-level-models" title="Permanent link">&para;</a></h2>
+<h3 id="ebgaregressor">EBGARegressor<a class="headerlink" href="#ebgaregressor" title="Permanent link">&para;</a></h3>
+<p>For regression tasks:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">model</span> <span class="o">=</span> <span class="n">EBGARegressor</span><span class="p">(</span>
+    <span class="n">n_layers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>              <span class="c1"># Number of hidden layers</span>
+    <span class="n">h_dim</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>                <span class="c1"># Size of hidden layers</span>
+    <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span> <span class="c1"># Activation for hidden layers</span>
+    <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;mae&#39;</span><span class="p">,</span>              <span class="c1"># Loss function</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>          <span class="c1"># Training iterations</span>
+    <span class="n">lr_mu</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span>              <span class="c1"># Learning rate for μ</span>
+    <span class="n">lr_sigma</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span>           <span class="c1"># Learning rate for σ</span>
+    <span class="n">layer_patience</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>       <span class="c1"># Patience for layer-wise training</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="ebgaclassifier">EBGAClassifier<a class="headerlink" href="#ebgaclassifier" title="Permanent link">&para;</a></h3>
+<p>For classification tasks:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">model</span> <span class="o">=</span> <span class="n">EBGAClassifier</span><span class="p">(</span>
+    <span class="n">n_layers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">h_dim</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span>
+    <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">,</span>
+    <span class="n">n_classes</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;cross_entropy&#39;</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+    <span class="n">lr_mu</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+    <span class="n">lr_sigma</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+    <span class="n">layer_patience</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+<span class="n">y_proba</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+</code></pre></div>
+
+<h2 id="parameter-space-and-optimization">Parameter Space and Optimization<a class="headerlink" href="#parameter-space-and-optimization" title="Permanent link">&para;</a></h2>
+<h3 id="parameter-count">Parameter Count<a class="headerlink" href="#parameter-count" title="Permanent link">&para;</a></h3>
+<p>For a network with layers [d₁, d₂, ..., dₙ] and input dimension d_in:</p>
+<div class="codehilite"><pre><span></span><code>Total parameters = Σ (d_i * d_{i-1} + d_i)
+                 = Σ (weights + bias for each layer)
+</code></pre></div>
+
+<p>Example: Network with layers [64, 32, 1] and input=10:
+- Layer 1: 64 × 10 weights + 64 biases = 704 parameters
+- Layer 2: 32 × 64 weights + 32 biases = 2080 parameters
+- Layer 3: 1 × 32 weights + 1 bias = 33 parameters
+- <strong>Total: 2817 parameters</strong></p>
+<p>EBGA maintains 2 × 2817 = 5634 parameters (μ and σ for each).</p>
+<h3 id="search-space">Search Space<a class="headerlink" href="#search-space" title="Permanent link">&para;</a></h3>
+<p>With σ initialization of 0.1 and bounds [0.001, 1.0], each parameter explores:</p>
+<div class="codehilite"><pre><span></span><code>Initial search range: μ ± 3σ ≈ μ ± 0.3
+After adaptation: σ adjusts based on fitness landscape
+</code></pre></div>
+
+<p>The algorithm automatically adapts σ to match the scale of each parameter.</p>
+<h2 id="evolution-vs-gradients">Evolution vs. Gradients<a class="headerlink" href="#evolution-vs-gradients" title="Permanent link">&para;</a></h2>
+<h3 id="traditional-gradient-descent">Traditional Gradient Descent<a class="headerlink" href="#traditional-gradient-descent" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="gh">#</span> Gradient update
+θ_{t+1} = θ_t - η * ∇L(θ_t)
+
+<span class="gh">#</span> Problems:
+<span class="gh">#</span> - Requires ∇L(θ_t) to exist
+<span class="gh">#</span> - Can get stuck in local minima
+<span class="gh">#</span> - Sensitive to η (learning rate)
+<span class="gh">#</span> - Vanishing/exploding gradients
+</code></pre></div>
+
+<h3 id="ebga-evolution">EBGA Evolution<a class="headerlink" href="#ebga-evolution" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="gh">#</span> Distribution update
+μ_{t+1} = μ_t - η_μ <span class="gs">* E[(L - L̄) *</span> (θ - μ) / σ]
+σ_{t+1} = σ_t <span class="gs">* exp(η_σ *</span> E[(L - L̄) * ((θ - μ) / σ)² - 1)])
+
+<span class="gh">#</span> Advantages:
+<span class="gh">#</span> - No gradients required
+<span class="gh">#</span> - Naturally escapes local minima
+<span class="gh">#</span> - σ adapts automatically
+<span class="gh">#</span> - No vanishing/exploding issues
+</code></pre></div>
+
+<h3 id="key-differences">Key Differences<a class="headerlink" href="#key-differences" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Gradient Descent</th>
+<th>EBGA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Update direction</td>
+<td>Negative gradient</td>
+<td>Natural gradient from samples</td>
+</tr>
+<tr>
+<td>Step size</td>
+<td>Fixed (η)</td>
+<td>Adaptive (σ)</td>
+</tr>
+<tr>
+<td>Exploration</td>
+<td>None (deterministic)</td>
+<td>Built-in (sampling)</td>
+</tr>
+<tr>
+<td>Local minima</td>
+<td>Gets stuck</td>
+<td>Can escape</td>
+</tr>
+<tr>
+<td>Parallelization</td>
+<td>Limited</td>
+<td>Natural</td>
+</tr>
+</tbody>
+</table>
+<h2 id="comparison-to-other-evolutionary-approaches">Comparison to Other Evolutionary Approaches<a class="headerlink" href="#comparison-to-other-evolutionary-approaches" title="Permanent link">&para;</a></h2>
+<h3 id="differential-evolution-de">Differential Evolution (DE)<a class="headerlink" href="#differential-evolution-de" title="Permanent link">&para;</a></h3>
+<p>DE uses:</p>
+<div class="codehilite"><pre><span></span><code>θ_new = θ_a + F * (θ_b - θ_c)
+</code></pre></div>
+
+<ul>
+<li>Requires population of size N</li>
+<li>Memory: O(N × P)</li>
+<li>No distribution modeling</li>
+<li>Less efficient in high dimensions</li>
+</ul>
+<h3 id="particle-swarm-optimization-pso">Particle Swarm Optimization (PSO)<a class="headerlink" href="#particle-swarm-optimization-pso" title="Permanent link">&para;</a></h3>
+<p>PSO uses:</p>
+<div class="codehilite"><pre><span></span><code>v_{t+1} = w <span class="gs">* v_t + c1 *</span> r1 <span class="gs">* (p_best - θ_t) + c2 *</span> r2 * (g_best - θ_t)
+θ_{t+1} = θ_t + v_{t+1}
+</code></pre></div>
+
+<ul>
+<li>Requires velocity tracking</li>
+<li>Memory: O(N × P)</li>
+<li>No uncertainty modeling</li>
+</ul>
+<h3 id="covariance-matrix-adaptation-cma-es">Covariance Matrix Adaptation (CMA-ES)<a class="headerlink" href="#covariance-matrix-adaptation-cma-es" title="Permanent link">&para;</a></h3>
+<p>CMA-ES uses:</p>
+<div class="codehilite"><pre><span></span><code>θ ~ N(μ, C)
+C_{t+1} = (1-c) <span class="gs">* C_t + c *</span> adaptive_update
+</code></pre></div>
+
+<ul>
+<li>Maintains full covariance matrix</li>
+<li>Memory: O(P²)</li>
+<li>Excellent for small problems</li>
+<li>Doesn't scale to high dimensions</li>
+</ul>
+<h3 id="ebga-advantages">EBGA Advantages<a class="headerlink" href="#ebga-advantages" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Memory</th>
+<th>Scalability</th>
+<th>Gradient-Free</th>
+<th>Distribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DE</td>
+<td>O(N×P)</td>
+<td>Medium</td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td>PSO</td>
+<td>O(N×P)</td>
+<td>Medium</td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td>CMA-ES</td>
+<td>O(P²)</td>
+<td>Low</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>EBGA</td>
+<td>O(2×P)</td>
+<td><strong>High</strong></td>
+<td>✅ Yes</td>
+<td>✅ Yes (diagonal)</td>
+</tr>
+</tbody>
+</table>
+<p>EBGA offers the best <strong>scalability</strong> while maintaining distribution modeling and being completely gradient-free.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+                <p>Copyright &copy; 2024 EBGA Team</p>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = ".",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="js/base.js"></script>
+        <script src="search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

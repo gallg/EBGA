@@ -2,7 +2,7 @@
 
 ## What is EBGA?
 
-**EBGA** (**E**nergy-**B**ased **G**enetic **A**lgorithms) is a Python framework for building and training neural networks using gradient-free evolutionary optimization. Unlike traditional deep learning frameworks that rely on backpropagation and gradient descent, EBGA uses compact genetic algorithms to optimize network parameters.
+**EBGA** (**E**volutionary-**B**ased **G**radient-free **A**rchitecture) is a Python framework for building and training neural networks using gradient-free evolutionary optimization. Unlike traditional deep learning frameworks that rely on backpropagation and gradient descent, EBGA uses compact genetic algorithms to optimize network parameters.
 
 ## Core Innovation
 

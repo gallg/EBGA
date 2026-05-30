@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="EBGA Team">
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Neural Network - EBGA Framework Documentation</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../index.html">EBGA Framework Documentation</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../index.html" class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../overview.html" class="nav-link">Framework Overview</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../concepts.html" class="nav-link">Core Concepts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../tutorials.html" class="nav-link">Tutorials</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../configuration.html" class="nav-link">Configuration Guide</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../best_practices.html" class="nav-link">Best Practices</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../api.html" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="models.html" class="dropdown-item">Models</a>
+</li>
+                                    
+<li>
+    <a href="nn.html" class="dropdown-item active" aria-current="page">Neural Network</a>
+</li>
+                                    
+<li>
+    <a href="layers.html" class="dropdown-item">Layers</a>
+</li>
+                                    
+<li>
+    <a href="activations.html" class="dropdown-item">Activations</a>
+</li>
+                                    
+<li>
+    <a href="losses.html" class="dropdown-item">Losses</a>
+</li>
+                                    
+<li>
+    <a href="optimizer.html" class="dropdown-item">Optimizer</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="models.html" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="layers.html" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/your-repo/EBGA/edit/master/docs/api/nn.md" class="nav-link">Edit on EBGA
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#nn-module" class="nav-link">nn Module</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#sequential" class="nav-link">Sequential</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#network-architecture-examples" class="nav-link">Network Architecture Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="nn-module">nn Module<a class="headerlink" href="#nn-module" title="Permanent link">&para;</a></h1>
+<p>Neural network container for building sequential networks.</p>
+<h2 id="sequential">Sequential<a class="headerlink" href="#sequential" title="Permanent link">&para;</a></h2>
+<p>Container for chaining layers together in sequence, similar to PyTorch's <code>nn.Sequential</code>.</p>
+<h3 id="class-signature">Class Signature<a class="headerlink" href="#class-signature" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Sequential</span><span class="p">(</span><span class="o">*</span><span class="n">layers</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*layers</code></td>
+<td>Layer</td>
+<td>Variable number of Layer instances to chain together.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layers</code></td>
+<td>list</td>
+<td>List of Layer instances.</td>
+</tr>
+<tr>
+<td><code>initialized</code></td>
+<td>bool</td>
+<td>Whether the network has been initialized.</td>
+</tr>
+<tr>
+<td><code>input_size</code></td>
+<td>int</td>
+<td>Size of input features (set after initialization).</td>
+</tr>
+<tr>
+<td><code>output_size</code></td>
+<td>int</td>
+<td>Size of output (set after initialization).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
+<h4 id="initializeinput_size">initialize(input_size)<a class="headerlink" href="#initializeinput_size" title="Permanent link">&para;</a></h4>
+<p>Initialize all layers with proper input/output sizes.</p>
+<p><strong>Parameters:</strong>
+- <code>input_size</code> : int - Size of input features.</p>
+<p>This method:
+1. Sets <code>input_size</code> for the first layer
+2. Propagates sizes through all layers
+3. Calls <code>initialize()</code> on each layer
+4. Sets <code>output_size</code> to the final layer's output size</p>
+<h4 id="forwardx">forward(x)<a class="headerlink" href="#forwardx" title="Permanent link">&para;</a></h4>
+<p>Forward pass through all layers.</p>
+<p><strong>Parameters:</strong>
+- <code>x</code> : array-like, shape (n_samples, input_size) - Input data.</p>
+<p><strong>Returns:</strong>
+- <code>output</code> : array, shape (n_samples, output_size) - Output after all layers.</p>
+<h4 id="get_all_parameters">get_all_parameters()<a class="headerlink" href="#get_all_parameters" title="Permanent link">&para;</a></h4>
+<p>Get all parameters from all layers as a single flat array.</p>
+<p><strong>Returns:</strong>
+- <code>params</code> : array, shape (total_params,) - Concatenated parameters from all layers.</p>
+<h4 id="set_all_parametersparams">set_all_parameters(params)<a class="headerlink" href="#set_all_parametersparams" title="Permanent link">&para;</a></h4>
+<p>Set all parameters from a flat array.</p>
+<p><strong>Parameters:</strong>
+- <code>params</code> : array, shape (total_params,) - Flat array of parameters.</p>
+<h4 id="parameter_count">parameter_count()<a class="headerlink" href="#parameter_count" title="Permanent link">&para;</a></h4>
+<p>Get total number of parameters in the network.</p>
+<p><strong>Returns:</strong>
+- <code>count</code> : int - Total number of parameters.</p>
+<h4 id="get_layer_parameterslayer_idx">get_layer_parameters(layer_idx)<a class="headerlink" href="#get_layer_parameterslayer_idx" title="Permanent link">&para;</a></h4>
+<p>Get parameters for a specific layer.</p>
+<p><strong>Parameters:</strong>
+- <code>layer_idx</code> : int - Index of the layer.</p>
+<p><strong>Returns:</strong>
+- <code>params</code> : array - Parameters for that layer.</p>
+<h3 id="special-methods">Special Methods<a class="headerlink" href="#special-methods" title="Permanent link">&para;</a></h3>
+<h4 id="len"><strong>len</strong>()<a class="headerlink" href="#len" title="Permanent link">&para;</a></h4>
+<p>Return the number of layers.</p>
+<h4 id="getitemidx"><strong>getitem</strong>(idx)<a class="headerlink" href="#getitemidx" title="Permanent link">&para;</a></h4>
+<p>Access a layer by index.</p>
+<p><strong>Parameters:</strong>
+- <code>idx</code> : int - Layer index.</p>
+<p><strong>Returns:</strong>
+- <code>Layer</code> - The layer at the specified index.</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequential</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Linear</span>
+
+<span class="c1"># Build a network</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="c1"># Initialize with input size</span>
+<span class="n">network</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Check properties</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of layers: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">network</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input size: </span><span class="si">{</span><span class="n">network</span><span class="o">.</span><span class="n">input_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output size: </span><span class="si">{</span><span class="n">network</span><span class="o">.</span><span class="n">output_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total parameters: </span><span class="si">{</span><span class="n">network</span><span class="o">.</span><span class="n">parameter_count</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Forward pass</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># 5 samples, 10 features</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output shape: </span><span class="si">{</span><span class="n">output</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># (5, 1)</span>
+
+<span class="c1"># Get and set parameters</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">get_all_parameters</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter count: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Modify and set</span>
+<span class="n">params_new</span> <span class="o">=</span> <span class="n">params</span> <span class="o">*</span> <span class="mf">1.1</span>  <span class="c1"># Scale all parameters by 10%</span>
+<span class="n">network</span><span class="o">.</span><span class="n">set_all_parameters</span><span class="p">(</span><span class="n">params_new</span><span class="p">)</span>
+
+<span class="c1"># Access individual layers</span>
+<span class="n">first_layer</span> <span class="o">=</span> <span class="n">network</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;First layer output size: </span><span class="si">{</span><span class="n">first_layer</span><span class="o">.</span><span class="n">output_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="network-architecture-examples">Network Architecture Examples<a class="headerlink" href="#network-architecture-examples" title="Permanent link">&para;</a></h2>
+<h3 id="simple-feedforward-network">Simple Feedforward Network<a class="headerlink" href="#simple-feedforward-network" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequential</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Linear</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="deep-network">Deep Network<a class="headerlink" href="#deep-network" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="n">network</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="network-with-different-activations">Network with Different Activations<a class="headerlink" href="#network-with-different-activations" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="n">network</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;sigmoid&#39;</span><span class="p">),</span>
+    <span class="n">Linear</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">input_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+                <p>Copyright &copy; 2024 EBGA Team</p>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

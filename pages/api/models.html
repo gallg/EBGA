@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="EBGA Team">
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Models - EBGA Framework Documentation</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../index.html">EBGA Framework Documentation</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../index.html" class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../overview.html" class="nav-link">Framework Overview</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../concepts.html" class="nav-link">Core Concepts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../tutorials.html" class="nav-link">Tutorials</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../configuration.html" class="nav-link">Configuration Guide</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../best_practices.html" class="nav-link">Best Practices</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../api.html" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="models.html" class="dropdown-item active" aria-current="page">Models</a>
+</li>
+                                    
+<li>
+    <a href="nn.html" class="dropdown-item">Neural Network</a>
+</li>
+                                    
+<li>
+    <a href="layers.html" class="dropdown-item">Layers</a>
+</li>
+                                    
+<li>
+    <a href="activations.html" class="dropdown-item">Activations</a>
+</li>
+                                    
+<li>
+    <a href="losses.html" class="dropdown-item">Losses</a>
+</li>
+                                    
+<li>
+    <a href="optimizer.html" class="dropdown-item">Optimizer</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../api.html" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="nn.html" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/your-repo/EBGA/edit/master/docs/api/models.md" class="nav-link">Edit on EBGA
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#models-module" class="nav-link">models Module</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#ebgaregressor" class="nav-link">EBGARegressor</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#ebgaclassifier" class="nav-link">EBGAClassifier</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#basemodel" class="nav-link">BaseModel</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="models-module">models Module<a class="headerlink" href="#models-module" title="Permanent link">&para;</a></h1>
+<p>High-level neural network models for regression and classification.</p>
+<h2 id="ebgaregressor">EBGARegressor<a class="headerlink" href="#ebgaregressor" title="Permanent link">&para;</a></h2>
+<p>Evolutionary neural network for regression tasks.</p>
+<h3 id="class-signature">Class Signature<a class="headerlink" href="#class-signature" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EBGARegressor</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">h_dim</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span>
+                   <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;mae&#39;</span><span class="p">,</span>
+                   <span class="n">lr_mu</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">lr_sigma</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">sigma_min</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">sigma_max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                   <span class="n">calibration_size</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">calibration_interval</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">credit_factor</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                   <span class="n">max_iter</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">early_stopping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                   <span class="n">layer_patience</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">normalize_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layers</code></td>
+<td>list of tuples</td>
+<td>None</td>
+<td>Network architecture as (size, activation) tuples. If None, uses n_layers/h_dim.</td>
+</tr>
+<tr>
+<td><code>n_layers</code></td>
+<td>int</td>
+<td>1</td>
+<td>Number of hidden layers (excluding output). Only used if layers=None.</td>
+</tr>
+<tr>
+<td><code>h_dim</code></td>
+<td>int</td>
+<td>50</td>
+<td>Size of each hidden layer. Only used if layers=None.</td>
+</tr>
+<tr>
+<td><code>inner_activation</code></td>
+<td>str</td>
+<td>'relu'</td>
+<td>Activation for hidden layers. Options: 'relu', 'sigmoid', 'tanh', 'linear'.</td>
+</tr>
+<tr>
+<td><code>output_activation</code></td>
+<td>str</td>
+<td>'linear'</td>
+<td>Activation for output layer. Options: 'relu', 'sigmoid', 'tanh', 'linear'.</td>
+</tr>
+<tr>
+<td><code>loss</code></td>
+<td>str or Loss</td>
+<td>'mae'</td>
+<td>Loss function. Options: 'mse', 'mae'.</td>
+</tr>
+<tr>
+<td><code>lr_mu</code></td>
+<td>float</td>
+<td>0.03</td>
+<td>Learning rate for mean parameters.</td>
+</tr>
+<tr>
+<td><code>lr_sigma</code></td>
+<td>float</td>
+<td>0.03</td>
+<td>Learning rate for sigma parameters.</td>
+</tr>
+<tr>
+<td><code>sigma_min</code></td>
+<td>float</td>
+<td>0.001</td>
+<td>Minimum sigma value.</td>
+</tr>
+<tr>
+<td><code>sigma_max</code></td>
+<td>float</td>
+<td>1.0</td>
+<td>Maximum sigma value.</td>
+</tr>
+<tr>
+<td><code>calibration_size</code></td>
+<td>int</td>
+<td>30</td>
+<td>Number of samples for population calibration.</td>
+</tr>
+<tr>
+<td><code>calibration_interval</code></td>
+<td>int</td>
+<td>50</td>
+<td>How often to perform population calibration.</td>
+</tr>
+<tr>
+<td><code>credit_factor</code></td>
+<td>float</td>
+<td>2.0</td>
+<td>Strength of credit assignment in pairwise updates.</td>
+</tr>
+<tr>
+<td><code>max_iter</code></td>
+<td>int</td>
+<td>10000</td>
+<td>Maximum training iterations.</td>
+</tr>
+<tr>
+<td><code>early_stopping</code></td>
+<td>bool</td>
+<td>True</td>
+<td>Enable early stopping.</td>
+</tr>
+<tr>
+<td><code>patience</code></td>
+<td>int</td>
+<td>100</td>
+<td>Number of iterations to wait before early stopping.</td>
+</tr>
+<tr>
+<td><code>layer_patience</code></td>
+<td>int</td>
+<td>50</td>
+<td>Patience for layer-wise plateau detection.</td>
+</tr>
+<tr>
+<td><code>normalize_output</code></td>
+<td>bool</td>
+<td>False</td>
+<td>Scale output to 0-1 range.</td>
+</tr>
+<tr>
+<td><code>random_state</code></td>
+<td>int</td>
+<td>None</td>
+<td>Random seed for reproducibility.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>network_</code></td>
+<td>Sequential</td>
+<td>The underlying neural network.</td>
+</tr>
+<tr>
+<td><code>optimizer_</code></td>
+<td>CompactEvoOptimizer</td>
+<td>The optimizer instance.</td>
+</tr>
+<tr>
+<td><code>n_features_</code></td>
+<td>int</td>
+<td>Number of input features.</td>
+</tr>
+<tr>
+<td><code>y_min_</code></td>
+<td>float</td>
+<td>Minimum target value (if normalize_output=True).</td>
+</tr>
+<tr>
+<td><code>y_max_</code></td>
+<td>float</td>
+<td>Maximum target value (if normalize_output=True).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
+<h4 id="fitx-y">fit(X, y)<a class="headerlink" href="#fitx-y" title="Permanent link">&para;</a></h4>
+<p>Fit the model to training data.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Training input.
+- <code>y</code> : array-like, shape (n_samples,) - Target values.</p>
+<p><strong>Returns:</strong>
+- <code>self</code> : Returns the instance itself.</p>
+<h4 id="predictx">predict(X)<a class="headerlink" href="#predictx" title="Permanent link">&para;</a></h4>
+<p>Predict target values for input X.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Input samples.</p>
+<p><strong>Returns:</strong>
+- <code>y_pred</code> : array, shape (n_samples,) - Predicted values.</p>
+<h4 id="scorex-y">score(X, y)<a class="headerlink" href="#scorex-y" title="Permanent link">&para;</a></h4>
+<p>Calculate R² score on test data.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Test input.
+- <code>y</code> : array-like, shape (n_samples,) - True target values.</p>
+<p><strong>Returns:</strong>
+- <code>score</code> : float - R² score (higher is better, max=1.0).</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">EBGARegressor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_diabetes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
+
+<span class="c1"># Load data</span>
+<span class="n">diabetes</span> <span class="o">=</span> <span class="n">load_diabetes</span><span class="p">()</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">diabetes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">diabetes</span><span class="o">.</span><span class="n">target</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+
+<span class="c1"># Standardize</span>
+<span class="n">scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+<span class="n">X_train</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+<span class="n">X_test</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+
+<span class="c1"># Create and train model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">EBGARegressor</span><span class="p">(</span>
+    <span class="n">n_layers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">h_dim</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span>
+    <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+<span class="c1"># Predict and evaluate</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;R² Score: </span><span class="si">{</span><span class="n">score</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="explicit-layers-example">Explicit Layers Example<a class="headerlink" href="#explicit-layers-example" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Build network with explicit architecture</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">EBGARegressor</span><span class="p">(</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="s1">&#39;tanh&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+    <span class="p">],</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">10000</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="ebgaclassifier">EBGAClassifier<a class="headerlink" href="#ebgaclassifier" title="Permanent link">&para;</a></h2>
+<p>Evolutionary neural network for classification tasks.</p>
+<h3 id="class-signature_1">Class Signature<a class="headerlink" href="#class-signature_1" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EBGAClassifier</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">h_dim</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> 
+                    <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span> <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">,</span> 
+                    <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;cross_entropy&#39;</span><span class="p">,</span>
+                    <span class="n">lr_mu</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">lr_sigma</span><span class="o">=</span><span class="mf">0.005</span><span class="p">,</span> <span class="n">sigma_min</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">sigma_max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                    <span class="n">calibration_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">calibration_interval</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">credit_factor</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+                    <span class="n">max_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">early_stopping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+                    <span class="n">layer_patience</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="parameters_1">Parameters<a class="headerlink" href="#parameters_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layers</code></td>
+<td>list of tuples</td>
+<td>None</td>
+<td>Network architecture as (size, activation) tuples. If None, uses n_layers/h_dim.</td>
+</tr>
+<tr>
+<td><code>n_classes</code></td>
+<td>int</td>
+<td>None</td>
+<td>Number of classes. If None, inferred from data.</td>
+</tr>
+<tr>
+<td><code>n_layers</code></td>
+<td>int</td>
+<td>1</td>
+<td>Number of hidden layers (excluding output). Only used if layers=None.</td>
+</tr>
+<tr>
+<td><code>h_dim</code></td>
+<td>int</td>
+<td>50</td>
+<td>Size of each hidden layer. Only used if layers=None.</td>
+</tr>
+<tr>
+<td><code>inner_activation</code></td>
+<td>str</td>
+<td>'relu'</td>
+<td>Activation for hidden layers.</td>
+</tr>
+<tr>
+<td><code>output_activation</code></td>
+<td>str</td>
+<td>'softmax'</td>
+<td>Activation for output layer.</td>
+</tr>
+<tr>
+<td><code>loss</code></td>
+<td>str or Loss</td>
+<td>'cross_entropy'</td>
+<td>Loss function. Options: 'cross_entropy', 'binary_cross_entropy'.</td>
+</tr>
+<tr>
+<td><code>lr_mu</code></td>
+<td>float</td>
+<td>0.05</td>
+<td>Learning rate for mean parameters.</td>
+</tr>
+<tr>
+<td><code>lr_sigma</code></td>
+<td>float</td>
+<td>0.005</td>
+<td>Learning rate for sigma parameters.</td>
+</tr>
+<tr>
+<td><code>sigma_min</code></td>
+<td>float</td>
+<td>0.001</td>
+<td>Minimum sigma value.</td>
+</tr>
+<tr>
+<td><code>sigma_max</code></td>
+<td>float</td>
+<td>1.0</td>
+<td>Maximum sigma value.</td>
+</tr>
+<tr>
+<td><code>calibration_size</code></td>
+<td>int</td>
+<td>20</td>
+<td>Number of samples for population calibration.</td>
+</tr>
+<tr>
+<td><code>calibration_interval</code></td>
+<td>int</td>
+<td>25</td>
+<td>How often to perform population calibration.</td>
+</tr>
+<tr>
+<td><code>credit_factor</code></td>
+<td>float</td>
+<td>2.0</td>
+<td>Strength of credit assignment.</td>
+</tr>
+<tr>
+<td><code>max_iter</code></td>
+<td>int</td>
+<td>500</td>
+<td>Maximum training iterations.</td>
+</tr>
+<tr>
+<td><code>early_stopping</code></td>
+<td>bool</td>
+<td>True</td>
+<td>Enable early stopping.</td>
+</tr>
+<tr>
+<td><code>patience</code></td>
+<td>int</td>
+<td>20</td>
+<td>Number of iterations to wait before early stopping.</td>
+</tr>
+<tr>
+<td><code>layer_patience</code></td>
+<td>int</td>
+<td>50</td>
+<td>Patience for layer-wise plateau detection.</td>
+</tr>
+<tr>
+<td><code>random_state</code></td>
+<td>int</td>
+<td>None</td>
+<td>Random seed for reproducibility.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="attributes_1">Attributes<a class="headerlink" href="#attributes_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>network_</code></td>
+<td>Sequential</td>
+<td>The underlying neural network.</td>
+</tr>
+<tr>
+<td><code>optimizer_</code></td>
+<td>CompactEvoOptimizer</td>
+<td>The optimizer instance.</td>
+</tr>
+<tr>
+<td><code>n_features_</code></td>
+<td>int</td>
+<td>Number of input features.</td>
+</tr>
+<tr>
+<td><code>n_classes_</code></td>
+<td>int</td>
+<td>Number of classes.</td>
+</tr>
+<tr>
+<td><code>label_binarizer_</code></td>
+<td>LabelBinarizer</td>
+<td>sklearn label binarizer for one-hot encoding.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="methods_1">Methods<a class="headerlink" href="#methods_1" title="Permanent link">&para;</a></h3>
+<h4 id="fitx-y_1">fit(X, y)<a class="headerlink" href="#fitx-y_1" title="Permanent link">&para;</a></h4>
+<p>Fit the model to training data.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Training input.
+- <code>y</code> : array-like, shape (n_samples,) - Target class labels.</p>
+<p><strong>Returns:</strong>
+- <code>self</code> : Returns the instance itself.</p>
+<h4 id="predictx_1">predict(X)<a class="headerlink" href="#predictx_1" title="Permanent link">&para;</a></h4>
+<p>Predict class labels for input X.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Input samples.</p>
+<p><strong>Returns:</strong>
+- <code>y_pred</code> : array, shape (n_samples,) - Predicted class labels (integers).</p>
+<h4 id="predict_probax">predict_proba(X)<a class="headerlink" href="#predict_probax" title="Permanent link">&para;</a></h4>
+<p>Predict class probabilities for input X.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Input samples.</p>
+<p><strong>Returns:</strong>
+- <code>y_proba</code> : array, shape (n_samples, n_classes) - Class probabilities.</p>
+<h4 id="scorex-y_1">score(X, y)<a class="headerlink" href="#scorex-y_1" title="Permanent link">&para;</a></h4>
+<p>Calculate accuracy score on test data.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like, shape (n_samples, n_features) - Test input.
+- <code>y</code> : array-like, shape (n_samples,) - True class labels.</p>
+<p><strong>Returns:</strong>
+- <code>score</code> : float - Accuracy (0-1, higher is better).</p>
+<h3 id="example_1">Example<a class="headerlink" href="#example_1" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">EBGA.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">EBGAClassifier</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_iris</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
+
+<span class="c1"># Load data</span>
+<span class="n">iris</span> <span class="o">=</span> <span class="n">load_iris</span><span class="p">()</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">iris</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">iris</span><span class="o">.</span><span class="n">target</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+
+<span class="c1"># Standardize</span>
+<span class="n">scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+<span class="n">X_train</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+<span class="n">X_test</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+
+<span class="c1"># Create and train model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">EBGAClassifier</span><span class="p">(</span>
+    <span class="n">n_layers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">h_dim</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">inner_activation</span><span class="o">=</span><span class="s1">&#39;relu&#39;</span><span class="p">,</span>
+    <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">,</span>
+    <span class="n">n_classes</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+<span class="c1"># Predict and evaluate</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+<span class="n">accuracy</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Accuracy: </span><span class="si">{</span><span class="n">accuracy</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Get probabilities</span>
+<span class="n">y_proba</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="explicit-layers-example_1">Explicit Layers Example<a class="headerlink" href="#explicit-layers-example_1" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Build network with explicit architecture</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">EBGAClassifier</span><span class="p">(</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="s1">&#39;relu&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;softmax&#39;</span><span class="p">)</span>  <span class="c1"># 3 classes for Iris</span>
+    <span class="p">],</span>
+    <span class="n">n_classes</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">2000</span>
+<span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="basemodel">BaseModel<a class="headerlink" href="#basemodel" title="Permanent link">&para;</a></h2>
+<p>Abstract base class for EBGA models.</p>
+<h3 id="class-signature_2">Class Signature<a class="headerlink" href="#class-signature_2" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">BaseModel</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+               <span class="n">lr_mu</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">lr_sigma</span><span class="o">=</span><span class="mf">0.005</span><span class="p">,</span> <span class="n">sigma_min</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">sigma_max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+               <span class="n">calibration_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">calibration_interval</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">credit_factor</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+               <span class="n">max_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">early_stopping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="methods_2">Methods<a class="headerlink" href="#methods_2" title="Permanent link">&para;</a></h3>
+<h4 id="_build_networkinput_size-output_size">_build_network(input_size, output_size)<a class="headerlink" href="#_build_networkinput_size-output_size" title="Permanent link">&para;</a></h4>
+<p>Build the neural network from layer specification.</p>
+<p><strong>Parameters:</strong>
+- <code>input_size</code> : int - Size of input features.
+- <code>output_size</code> : int - Size of output layer.</p>
+<p><strong>Returns:</strong>
+- <code>Sequential</code> - The built neural network.</p>
+<h4 id="_build_layers_from_params">_build_layers_from_params()<a class="headerlink" href="#_build_layers_from_params" title="Permanent link">&para;</a></h4>
+<p>Build layer specification from simple parameters (n_layers, h_dim, inner_activation).</p>
+<p><strong>Returns:</strong>
+- <code>list</code> - List of (size, activation) tuples.</p>
+<p>Only used when <code>layers=None</code>.</p>
+<h4 id="_create_loss_funcx-y">_create_loss_func(X, y)<a class="headerlink" href="#_create_loss_funcx-y" title="Permanent link">&para;</a></h4>
+<p>Create a loss function closure for optimization.</p>
+<p><strong>Parameters:</strong>
+- <code>X</code> : array-like - Input data.
+- <code>y</code> : array-like - Target data.</p>
+<p><strong>Returns:</strong>
+- <code>callable</code> - Loss function that takes parameters and returns loss.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+                <p>Copyright &copy; 2024 EBGA Team</p>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

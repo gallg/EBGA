@@ -35,7 +35,7 @@ def run_test(random_state=42):
     
     # Create model with explicit layers
     print("\nModel configuration:")
-    print("  layers=[(10, 'relu'), (10, 'relu'), (2, 'softmax')]")
+    print("  layers=[(10, 'sigmoid'), (10, 'sigmoid'), (2, 'softmax')]")
     print("  n_classes=2")
     print("  Layer-wise training: enabled")
     
