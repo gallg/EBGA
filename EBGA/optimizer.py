@@ -53,6 +53,10 @@ class CompactEvoOptimizer:
         # Initialize distribution parameters
         self.mu = None
         self.sigma = None
+        
+        # Running estimate of loss scale for adaptive credit assignment
+        self.loss_scale = 1.0
+        self.loss_scale_decay = 0.99
     
     def initialize(self, initial_params=None):
         if initial_params is not None:
@@ -75,13 +79,23 @@ class CompactEvoOptimizer:
         # Evaluate all perturbed samples
         losses = np.array([loss_func(p) for p in perturbed])
         
+        # Update loss scale estimate (exponential moving average of loss magnitude)
+        # Use mean of evaluated losses for consistency with pairwise step
+        self.loss_scale = self.loss_scale_decay * self.loss_scale + (1 - self.loss_scale_decay) * np.mean(np.abs(losses))
+        
         # Natural gradient update for Gaussian distribution
         grad_mu = np.mean(losses[:, None] * noise, axis=0)
         grad_sigma = np.mean(losses[:, None] * (noise**2 - 1), axis=0)
         
+        # Adaptive learning rates: scale by inverse of loss scale
+        # When loss is large, gradients are large, so we need smaller effective LR
+        # When loss is small, gradients are small, so we need larger effective LR
+        adaptive_lr_mu = self.lr_mu / (self.loss_scale + 1e-8)
+        adaptive_lr_sigma = self.lr_sigma / (self.loss_scale + 1e-8)
+        
         # Update distribution
-        self.mu -= self.lr_mu * grad_mu
-        self.sigma *= np.exp(self.lr_sigma * grad_sigma)
+        self.mu -= adaptive_lr_mu * grad_mu
+        self.sigma *= np.exp(adaptive_lr_sigma * grad_sigma)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
         
         return np.mean(losses)
@@ -102,10 +116,19 @@ class CompactEvoOptimizer:
             winner, loser = theta2, theta1
             winner_loss, loser_loss = loss2, loss1
         
-        # Credit assignment based on improvement
+        # Credit assignment based on absolute improvement, normalized by loss scale
         eps = 1e-8
-        relative_improvement = (loser_loss - winner_loss) / (loser_loss + winner_loss + eps)
-        update_strength = 1 + self.credit_factor * np.tanh(relative_improvement)
+        absolute_improvement = loser_loss - winner_loss
+        
+        # Normalize improvement by running loss scale estimate
+        # This makes credit assignment invariant to the absolute loss magnitude
+        normalized_improvement = absolute_improvement / (self.loss_scale + eps)
+        update_strength = 1 + self.credit_factor * np.tanh(normalized_improvement)
+        
+        # Update loss scale estimate (exponential moving average)
+        # Use absolute value for consistency (losses are always positive for MSE/MAE)
+        avg_loss = (loss1 + loss2) / 2
+        self.loss_scale = self.loss_scale_decay * self.loss_scale + (1 - self.loss_scale_decay) * np.abs(avg_loss)
         
         # Parameter-specific adaptation
         winner_diff = winner - self.mu
