@@ -38,7 +38,8 @@ def main():
     print("Evolutionary-Based Gradient-free Architecture")
     print("=" * 70)
     print("\nAll models use EXPLICIT LAYER SPECIFICATION")
-    print("Layer-wise training is enabled by default\n")
+    print("Layer-wise training is enabled by default")
+    print("\nComparison: EBGA vs sklearn Ridge/RidgeClassifier\n")
     
     results = {}
     
@@ -72,12 +73,12 @@ def main():
     print("SUMMARY")
     print("=" * 70)
     
-    print("\nStandard Classification Datasets:")
+    print("\nClassification Datasets:")
     for dataset in ['Iris', 'Breast Cancer', 'Wine']:
         if dataset in results:
             acc = results[dataset]['accuracy']
             print(f"  {dataset:20s}: Accuracy = {acc:.4f}")
-
+    
     print("\nRegression Datasets:")
     for dataset in ['Diabetes', 'California Housing']:
         if dataset in results:

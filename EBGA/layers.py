@@ -35,16 +35,9 @@ class Linear(Layer):
     
     def initialize(self, input_size):
         self.input_size = input_size
-        
-        # Xavier/Glorot initialization
         limit = np.sqrt(6 / (self.input_size + self.output_size))
         self.W = np.random.uniform(-limit, limit, (self.output_size, self.input_size))
-        
-        if self.use_bias:
-            self.b = np.zeros(self.output_size)
-        else:
-            self.b = None
-        
+        self.b = np.zeros(self.output_size) if self.use_bias else None
         self.initialized = True
     
     def forward(self, x):
@@ -93,7 +86,7 @@ class Flatten(Layer):
     def forward(self, x):
         if not self.initialized:
             self.initialize(x.shape[1])
-        return x  # Flatten doesn't change anything for 2D input
+        return x
     
     def get_parameters(self):
         return np.array([])

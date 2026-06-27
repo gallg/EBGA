@@ -5,6 +5,7 @@ from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.linear_model import RidgeClassifier
 
 from EBGA.models import EBGAClassifier
 
@@ -33,6 +34,12 @@ def run_test(random_state=42):
     print(f"Features: {X_train.shape[1]}, Classes: {len(np.unique(y))}")
     print(f"Training samples: {X_train.shape[0]}, Test samples: {X_test.shape[0]}")
     
+    # RidgeClassifier baseline
+    ridge_clf = RidgeClassifier(alpha=1.0, random_state=random_state)
+    ridge_clf.fit(X_train, y_train)
+    ridge_acc = accuracy_score(y_test, ridge_clf.predict(X_test))
+    print(f"(sklearn RidgeClassifier baseline: Accuracy = {ridge_acc:.4f})")
+    
     # Create model with explicit layers
     print("\nModel configuration:")
     print("  layers=[(10, 'relu'), (10, 'relu'), (3, 'softmax')]")
@@ -58,6 +65,7 @@ def run_test(random_state=42):
     
     print(f"\nResults:")
     print(f"  Accuracy: {acc:.4f}")
+    print(f"  vs RidgeClassifier: {acc:.4f} / {ridge_acc:.4f} ({acc/ridge_acc*100:.1f}%)")
     print(f"\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=wine.target_names))
     

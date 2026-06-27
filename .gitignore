@@ -1,7 +1,10 @@
 **/__pycache__
 **/.DS_Store
 
-.obsidian/
 .venv/
-
 site/
+
+# Documentation build outputs
+*.html
+*.xml
+*.gz

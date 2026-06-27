@@ -56,3 +56,8 @@ class Sequential:
     
     def __repr__(self):
         return f"Sequential({[type(l).__name__ for l in self.layers]})"
+    
+    def set_training(self, training):
+        for layer in self.layers:
+            if hasattr(layer, 'set_training'):
+                layer.set_training(training)

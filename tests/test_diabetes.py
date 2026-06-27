@@ -34,24 +34,24 @@ def run_test(random_state=42):
     print(f"Training samples: {X_train.shape[0]}, Test samples: {X_test.shape[0]}")
     print(f"(sklearn LinearRegression baseline: R² ≈ 0.4526)")
     
-    # Create model with explicit layers
+    # Create model with feature extraction layers
+    n_features = X_train.shape[1]
     print("\nModel configuration:")
-    print("  layers=[(1, 'linear')]")
+    print(f"  layers=[({n_features}, 'relu'), (1, 'linear')]")
     print("  normalize_output=True")
     print("  loss='mse'")
     print("  lr_mu=0.00055, lr_sigma=0.00008")
-    print("  Layer-wise training: disabled")
-    print("  Adaptive loss scale: enabled in optimizer")
+    print("  Layer-wise training: enabled (evolutionary)")
     
     model = EBGARegressor(
-        layers=[(1, 'linear')],
+        layers=[(n_features, 'relu'), (1, 'linear')],
         normalize_output=True,
         loss='mse',
         lr_mu=0.00055,
         lr_sigma=0.00008,
         calibration_size=30,
         calibration_interval=50,
-        layer_patience=0,
+        layer_patience=30,
         max_iter=50000,
         early_stopping=False,
         patience=100,

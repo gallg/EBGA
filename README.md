@@ -23,6 +23,8 @@ This package provides a **unified neural network framework** for both regression
 - ✅ **Works with noisy or discontinuous objectives**
 - ✅ **Naturally parallelizable implementation**
 - ✅ **Unified framework** for both regression and classification
+- ✅ **Dropout regularization** - Built-in dropout layers for regularization
+- ✅ **L2 regularization** - Optional weight decay for improved generalization
 
 ### Framework Modules
 
@@ -33,7 +35,8 @@ EBGA/
 ├── layers.py      # Layer classes (Linear, Flatten, etc.)
 ├── activations.py # Activation functions (ReLU, Sigmoid, Tanh, Linear, Softmax)
 ├── losses.py      # Loss functions (MSE, MAE, CrossEntropy, BinaryCrossEntropy)
-└── optimizer.py   # CompactEvoOptimizer
+├── optimizer.py   # CompactEvoOptimizer
+└── utils.py       # Checkpointing utilities (save_model, load_model, etc.)
 ```
 
 ## Installation
@@ -49,9 +52,9 @@ cd EBGA
 pip install -e .
 ```
 
-This will install EBGA and all dependencies (numpy, scikit-learn, scipy).
+This will install EBGA and all dependencies (numpy, scikit-learn).
 
-### Option 2: Manual installation
+### Option 2: Manual usage
 
 ```bash
 # Clone the repository
@@ -63,18 +66,14 @@ python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
-pip install numpy scikit-learn scipy
-
-# Add to PYTHONPATH
-PYTHONPATH=. python your_script.py
+pip install numpy scikit-learn
 ```
 
 ### Dependencies
 
-- Python 3.8+
-- numpy >= 1.20.0
-- scikit-learn >= 1.0.0
-- scipy >= 1.7.0
+- Python 3.10+
+- numpy >= 2.4.6
+- scikit-learn >= 1.8.0
 
 ## Quick Start
 
@@ -195,6 +194,24 @@ for iteration in range(1000):
     loss = optimizer.step(loss_func, iteration=iteration)
 ```
 
+### Model Checkpointing
+
+Save and load trained models and networks:
+
+```python
+from EBGA.utils import save_model, load_model, save_network, load_network
+
+# High-level models
+model = EBGARegressor(layers=[(50, 'relu'), (1, 'linear')])
+model.fit(X_train, y_train)
+save_model(model, 'regressor.npz')
+loaded_model = load_model('regressor.npz')
+
+# Custom networks
+save_network(network, optimizer, 'custom_network.npz')
+loaded_network, loaded_optimizer = load_network('custom_network.npz')
+```
+
 ## Running Tests
 
 Run the test suite on standard datasets (Iris, Breast Cancer, Wine):
@@ -209,6 +226,7 @@ python main.py
 Provides various layer types:
 - `Linear` - Fully connected layer with configurable activation
 - `Flatten` - Flatten layer
+- `Dropout` - Dropout layer for regularization
 
 ### Activations Module
 Available activation functions:
@@ -248,6 +266,7 @@ Available loss functions:
 | `lr_sigma` | 0.03 (reg) / 0.005 (cls) | Learning rate for σ (std dev) |
 | `sigma_min` | 0.001 | Minimum σ value |
 | `sigma_max` | 1.0 | Maximum σ value |
+| `sigma_regularization` | 0.0 | Sigma diversity regularization |
 | `calibration_size` | 30 (reg) / 20 (cls) | Population size for calibration |
 | `calibration_interval` | 50 (reg) / 25 (cls) | Population calibration frequency |
 | `credit_factor` | 2.0 | Strength of credit assignment |
@@ -260,7 +279,7 @@ Available loss functions:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `loss` | 'mae' | Loss function ('mse', 'mae') |
-| `normalize_output` | False | Scale output to 0-1 range |
+| `normalize_output` | False | Normalize output to 0-1 range |
 
 ### Classifier-Specific
 

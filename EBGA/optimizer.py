@@ -1,13 +1,13 @@
 import numpy as np
 
 
+class BudgetExceededError(Exception):
+    pass
+
+
 class CompactEvoOptimizer:
     """
     Compact Evolutionary Optimizer.
-    
-    A gradient-free evolutionary optimization algorithm that maintains
-    a Gaussian distribution over parameters (mean mu, std sigma) and
-    updates it based on fitness evaluations using natural gradient updates.
     
     Parameters:
         param_dim: int
@@ -26,6 +26,14 @@ class CompactEvoOptimizer:
             How often to perform population calibration
         credit_factor: float, default=2.0
             Strength of credit assignment for update magnitude
+        sigma_regularization: float, default=0.0
+            Strength of sigma diversity regularization. If > 0, adds a term that
+            encourages larger sigma values to prevent regression to mean.
+            Uses -log(sigma) regularization similar to VAEs.
+        bounds: tuple, optional
+            (lower, upper) bounds for each parameter
+        budget: int, optional
+            Maximum number of evaluations
         random_state: RandomState, optional
             Random number generator
     """
@@ -33,7 +41,8 @@ class CompactEvoOptimizer:
     def __init__(self, param_dim, lr_mu=0.05, lr_sigma=0.005,
                  sigma_min=0.001, sigma_max=1.0,
                  calibration_size=20, calibration_interval=25,
-                 credit_factor=2.0, random_state=None):
+                 credit_factor=2.0, sigma_regularization=0.0,
+                 bounds=None, budget=None, random_state=None):
         self.param_dim = param_dim
         self.lr_mu = lr_mu
         self.lr_sigma = lr_sigma
@@ -42,6 +51,9 @@ class CompactEvoOptimizer:
         self.calibration_size = calibration_size
         self.calibration_interval = calibration_interval
         self.credit_factor = credit_factor
+        self.sigma_regularization = sigma_regularization
+        self.bounds = bounds
+        self.budget = budget
         
         if random_state is None:
             self.rng = np.random.RandomState()
@@ -54,6 +66,10 @@ class CompactEvoOptimizer:
         self.mu = None
         self.sigma = None
         
+        # Tracking
+        self.num_evaluations = 0
+        self.callbacks = {"tell": []}
+        
         # Running estimate of loss scale for adaptive credit assignment
         self.loss_scale = 1.0
         self.loss_scale_decay = 0.99
@@ -65,12 +81,35 @@ class CompactEvoOptimizer:
             self.mu = self.rng.randn(self.param_dim) * 0.01
         
         self.sigma = np.ones(self.param_dim) * 0.1
+        self.num_evaluations = 0
+    
+    def register_callback(self, event, callback):
+        if event in self.callbacks:
+            self.callbacks[event].append(callback)
     
     def step(self, loss_func, iteration=None):
-        if iteration is None or iteration % self.calibration_interval == 0:
-            return self._population_calibration_step(loss_func)
+        is_calibration = iteration is None or iteration % self.calibration_interval == 0
+        evals_this_step = self.calibration_size if is_calibration else 2
+        
+        if self.budget is not None and self.num_evaluations + evals_this_step > self.budget:
+            raise BudgetExceededError("Optimization budget exceeded")
+        
+        if is_calibration:
+            loss = self._population_calibration_step(loss_func)
         else:
-            return self._pairwise_update_step(loss_func)
+            loss = self._pairwise_update_step(loss_func)
+        
+        self.num_evaluations += evals_this_step
+        
+        if self.bounds is not None:
+            lower, upper = self.bounds
+            self.mu = np.clip(self.mu, lower, upper)
+            self.sigma = np.clip(self.sigma, 0, np.inf)
+        
+        for callback in self.callbacks["tell"]:
+            callback(self, self.mu.copy(), loss)
+        
+        return loss
     
     def _population_calibration_step(self, loss_func):
         noise = self.rng.randn(self.calibration_size, self.param_dim)
@@ -86,6 +125,11 @@ class CompactEvoOptimizer:
         # Natural gradient update for Gaussian distribution
         grad_mu = np.mean(losses[:, None] * noise, axis=0)
         grad_sigma = np.mean(losses[:, None] * (noise**2 - 1), axis=0)
+        
+        # Sigma regularization: add term to encourage larger sigma (prevents regression to mean)
+        # Gradient of -log(sigma) w.r.t. sigma is +1/sigma, scaled by sigma_regularization strength
+        if self.sigma_regularization > 0:
+            grad_sigma += self.sigma_regularization * (1.0 / (self.sigma + 1e-8))
         
         # Adaptive learning rates: scale by inverse of loss scale
         # When loss is large, gradients are large, so we need smaller effective LR
@@ -140,8 +184,14 @@ class CompactEvoOptimizer:
         
         # Update sigma based on observed diversity
         observed_diversity = np.abs(winner - loser)
-        self.sigma *= np.exp(self.lr_sigma * update_strength * update_mag *
-                            (observed_diversity - self.sigma))
+        sigma_update = self.lr_sigma * update_strength * update_mag * (observed_diversity - self.sigma)
+        
+        # Sigma regularization: add term to encourage larger sigma (prevents regression to mean)
+        # Gradient of -log(sigma) w.r.t. sigma is +1/sigma, scaled by sigma_regularization strength
+        if self.sigma_regularization > 0:
+            sigma_update += self.sigma_regularization * (1.0 / (self.sigma + 1e-8))
+        
+        self.sigma *= np.exp(sigma_update)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
         
         return (loss1 + loss2) / 2
@@ -155,6 +205,21 @@ class CompactEvoOptimizer:
     def set_parameters(self, params):
         self.mu = np.array(params)
     
+    def minimize(self, func, initial_params=None, max_iter=None):
+        self.initialize(initial_params)
+        iteration = 0
+        
+        if max_iter is None:
+            max_iter = self.budget if self.budget else 1000
+        
+        for iteration in range(max_iter):
+            try:
+                loss = self.step(func, iteration=iteration)
+            except BudgetExceededError:
+                break
+        
+        return OptimizationResult(value=self.mu.copy(), loss=loss, num_evaluations=self.num_evaluations)
+    
     def state_dict(self):
         return {
             'mu': self.mu,
@@ -163,6 +228,8 @@ class CompactEvoOptimizer:
             'lr_sigma': self.lr_sigma,
             'sigma_min': self.sigma_min,
             'sigma_max': self.sigma_max,
+            'sigma_regularization': self.sigma_regularization,
+            'num_evaluations': self.num_evaluations,
         }
     
     def load_state_dict(self, state_dict):
@@ -172,3 +239,14 @@ class CompactEvoOptimizer:
         self.lr_sigma = state_dict.get('lr_sigma', self.lr_sigma)
         self.sigma_min = state_dict.get('sigma_min', self.sigma_min)
         self.sigma_max = state_dict.get('sigma_max', self.sigma_max)
+        self.sigma_regularization = state_dict.get('sigma_regularization', self.sigma_regularization)
+        self.num_evaluations = state_dict.get('num_evaluations', 0)
+
+
+class OptimizationResult:
+    def __init__(self, value, loss, num_evaluations=0):
+        self.value = value
+        self.loss = loss
+        self.num_evaluations = num_evaluations
+
+
