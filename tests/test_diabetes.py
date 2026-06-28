@@ -44,7 +44,7 @@ def run_test(random_state=42):
     print("  Layer-wise training: enabled (evolutionary)")
     
     model = EBGARegressor(
-        layers=[(n_features, 'relu'), (1, 'linear')],
+        layers=[(32, 'relu'), (1, 'linear')],
         normalize_output=True,
         loss='mse',
         lr_mu=0.00055,

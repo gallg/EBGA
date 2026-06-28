@@ -47,11 +47,11 @@ def run_test(random_state=42):
     print("  Layer-wise training: enabled")
     
     model = EBGAClassifier(
-        layers=[(10, 'sigmoid'), (10, 'sigmoid'), (2, 'softmax')],
+        layers=[(10, 'sigmoid'), (2, 'softmax')],
         n_classes=2,
         max_iter=3000,
-        lr_mu=0.01,
-        lr_sigma=0.01,
+        lr_mu=0.005,
+        lr_sigma=0.001,
         early_stopping=False,
         layer_patience=30,
         random_state=random_state,
