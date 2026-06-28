@@ -7,7 +7,7 @@ setup(
     name="EBGA",
     version="0.1.0",
     author="Giuseppe Gallitto",
-    description="Evolutionary Bayesian Geometric Adaptation - A natural gradient ML framework",
+    description="Evolutionary Based Gradient Alignment",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://codeberg.org/Nevdyf/EBGA",
@@ -32,7 +32,7 @@ setup(
     ],
     extras_require={
         "dev": [
-            "mkdocs>=1.0.0"
+            "mkdocs>=1.6.1"
         ],
     },
 )

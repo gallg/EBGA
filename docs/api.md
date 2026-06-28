@@ -4,6 +4,8 @@
 
 ### EBGARegressor
 
+Scikit-learn compatible regressor for neural network training with natural gradients.
+
 ```python
 from EBGA.models import EBGARegressor
 
@@ -14,6 +16,9 @@ model = EBGARegressor(
     inner_activation='relu',
     output_activation='linear',
     loss='mae',
+    optimizer=CompactEvoOptimizer,
+    use_layerwise=False,
+    n_candidates=None,
     sigma_regularization=0.0,
     max_iter=10000,
     lr_mu=0.03,
@@ -42,6 +47,9 @@ score = model.score(X, y)  # Returns R²
 - `inner_activation`: Activation function for hidden layers
 - `output_activation`: Activation function for output layer
 - `loss`: Loss function ('mse' or 'mae')
+- `optimizer`: Optimizer class (CompactEvoOptimizer or MultiCandidateOptimizer)
+- `use_layerwise`: If True, use layer-wise training; if False, train all layers together
+- `n_candidates`: Number of candidates for MultiCandidateOptimizer (ignored for CompactEvoOptimizer)
 - `sigma_regularization`: Strength of sigma diversity regularization
 - `max_iter`: Maximum training iterations
 - `lr_mu`: Learning rate for mean parameters
@@ -61,6 +69,8 @@ score = model.score(X, y)  # Returns R²
 
 ### EBGAClassifier
 
+Scikit-learn compatible classifier for neural network training with natural gradients.
+
 ```python
 from EBGA.models import EBGAClassifier
 
@@ -72,6 +82,9 @@ model = EBGAClassifier(
     inner_activation='relu',
     output_activation='softmax',
     loss='cross_entropy',
+    optimizer=CompactEvoOptimizer,
+    use_layerwise=False,
+    n_candidates=None,
     sigma_regularization=0.0,
     max_iter=500,
     lr_mu=0.05,
@@ -95,7 +108,7 @@ score = model.score(X, y)  # Returns accuracy
 
 **Parameters:** Same as EBGARegressor, plus:
 - `n_classes`: Number of classes (auto-inferred if None)
-- `loss`: Loss function ('cross_entropy' or 'bce')
+- `loss`: Loss function ('cross_entropy')
 
 ---
 
@@ -103,15 +116,18 @@ score = model.score(X, y)  # Returns accuracy
 
 ### Sequential
 
+Container for sequential layers.
+
 ```python
 from EBGA.nn import Sequential
+from EBGA.layers import Linear
 
 network = Sequential(layer1, layer2, ..., layerN)
 network.initialize(input_size)
-network.forward(X)
+output = network.forward(X)
 network.set_all_parameters(params)
-network.get_all_parameters()
-network.parameter_count()
+params = network.get_all_parameters()
+count = network.parameter_count()
 ```
 
 ---
@@ -120,14 +136,12 @@ network.parameter_count()
 
 ### Linear
 
+Fully connected layer.
+
 ```python
 from EBGA.layers import Linear
 
-layer = Linear(
-    output_size,
-    activation=None,
-    use_bias=True
-)
+layer = Linear(output_size, activation=None, use_bias=True)
 ```
 
 **Parameters:**
@@ -137,33 +151,29 @@ layer = Linear(
 
 ### Flatten
 
+Flatten layer.
+
 ```python
 from EBGA.layers import Flatten
 
 layer = Flatten()
 ```
 
-### Dropout
-
-```python
-from EBGA.layers import Dropout
-
-layer = Dropout(rate)
-```
-
-**Parameters:**
-- `rate`: Dropout probability (0-1)
-
 ---
 
 ## Activations
 
+Available activation functions:
+- ReLU / relu
+- Sigmoid / sigmoid
+- Tanh / tanh
+- Linear / linear
+- Softmax / softmax
+
 ```python
-from EBGA.activations import (
-    ReLU, Sigmoid, Tanh, Linear, Softmax,
-    relu, sigmoid, tanh, linear, softmax,
-    get_activation
-)
+from EBGA.activations import ReLU, Sigmoid, Tanh, Linear, Softmax
+from EBGA.activations import relu, sigmoid, tanh, linear, softmax
+from EBGA.activations import get_activation
 
 # As classes
 activation = ReLU()
@@ -172,7 +182,7 @@ output = activation(x)
 # As functions
 output = relu(x)
 
-# Get activation by name
+# Get by name
 activation = get_activation('relu')
 ```
 
@@ -180,12 +190,16 @@ activation = get_activation('relu')
 
 ## Losses
 
+Available loss functions:
+- MSE / mse_loss (Mean Squared Error)
+- MAE / mae_loss (Mean Absolute Error)
+- CrossEntropy / cross_entropy_loss
+- BinaryCrossEntropy / bce_loss
+
 ```python
-from EBGA.losses import (
-    MSE, MAE, CrossEntropy, BinaryCrossEntropy,
-    mse_loss, mae_loss, cross_entropy_loss, bce_loss,
-    get_loss
-)
+from EBGA.losses import MSE, MAE, CrossEntropy, BinaryCrossEntropy
+from EBGA.losses import mse_loss, mae_loss, cross_entropy_loss, bce_loss
+from EBGA.losses import get_loss
 
 # As classes
 loss = MSE()
@@ -194,15 +208,17 @@ value = loss(y_pred, y_true)
 # As functions
 value = mse_loss(y_pred, y_true)
 
-# Get loss by name
+# Get by name
 loss_fn = get_loss('mse')
 ```
 
 ---
 
-## Optimizer
+## Optimizers
 
 ### CompactEvoOptimizer
+
+Distribution-based evolutionary optimizer with single distribution per parameter.
 
 ```python
 from EBGA.optimizer import CompactEvoOptimizer
@@ -217,18 +233,12 @@ optimizer = CompactEvoOptimizer(
     calibration_interval=25,
     credit_factor=2.0,
     sigma_regularization=0.0,
-    bounds=None,
-    budget=None,
     random_state=None
 )
 
 optimizer.initialize(initial_params)
 loss = optimizer.step(loss_func, iteration=iter)
 params = optimizer.get_parameters()
-optimizer.set_parameters(params)
-
-# Or use minimize for complete optimization
-result = optimizer.minimize(loss_func, initial_params=params, max_iter=1000)
 ```
 
 **Parameters:**
@@ -241,21 +251,45 @@ result = optimizer.minimize(loss_func, initial_params=params, max_iter=1000)
 - `calibration_interval`: Frequency of population calibration
 - `credit_factor`: Strength of credit assignment
 - `sigma_regularization`: Strength of sigma regularization
-- `bounds`: Tuple of (lower, upper) bounds for parameters
-- `budget`: Maximum number of evaluations
 - `random_state`: Random seed
 
 **Methods:**
 - `initialize(initial_params)`: Initialize optimizer with parameters
 - `step(loss_func, iteration)`: Perform one optimization step
 - `get_parameters()`: Get current mean parameters
-- `set_parameters(params)`: Set mean parameters
-- `minimize(func, initial_params, max_iter)`: Run complete optimization
 
 **Attributes:**
 - `mu`: Current mean parameters
 - `sigma`: Current standard deviation parameters
-- `num_evaluations`: Total number of evaluations performed
+
+### MultiCandidateOptimizer
+
+Distribution-based evolutionary optimizer with multiple candidate distributions per parameter.
+
+```python
+from EBGA.optimizer import MultiCandidateOptimizer
+
+optimizer = MultiCandidateOptimizer(
+    param_dim,
+    n_candidates=3,
+    lr_mu=0.05,
+    lr_sigma=0.005,
+    sigma_min=0.001,
+    sigma_max=1.0,
+    calibration_size=20,
+    calibration_interval=25,
+    credit_factor=2.0,
+    sigma_regularization=0.0,
+    random_state=None
+)
+
+optimizer.initialize(initial_params)
+loss = optimizer.step(loss_func, iteration=iter)
+params = optimizer.get_parameters()
+```
+
+**Parameters:** Same as CompactEvoOptimizer, plus:
+- `n_candidates`: Number of candidate distributions per parameter (default: 3)
 
 ---
 
@@ -286,18 +320,3 @@ loaded_network, loaded_optimizer = load_network('network.npz')
 - `load_model(filepath)`: Load a saved model
 - `save_network(network, optimizer, filepath)`: Save a custom network and optimizer
 - `load_network(filepath)`: Load a saved network and optimizer
-
----
-
-## Training Utilities
-
-The EBGA framework includes internal utility functions used for the layer-wise training process:
-
-### Training Functions
-- `_create_layer_param_ranges(network)`: Create parameter ranges for each layer in the network
-- `_create_layer_optimizer(...)`: Create a configured CompactEvoOptimizer for layer training
-- `_train_single_layer(...)`: Train a single layer until plateau or max iterations
-- `_train_all_layers_together(...)`: Train all layers together using full network optimizer
-- `_build_layers_from_params_simple(...)`: Build layer configuration from simple parameters
-
-These functions are used internally by the models and provide the foundation for the layer-wise training approach that enables efficient natural gradient optimization.

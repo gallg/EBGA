@@ -9,7 +9,7 @@ from EBGA.nn import Sequential
 from EBGA.layers import Linear
 from EBGA.activations import get_activation
 from EBGA.losses import get_loss
-from EBGA.optimizer import CompactEvoOptimizer
+from EBGA.optimizer import CompactEvoOptimizer, MultiCandidateOptimizer
 
 
 # =============================================================================
@@ -56,13 +56,43 @@ def _create_layer_param_ranges(network):
     return layer_param_ranges
 
 
-def _create_layer_optimizer(param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
-                           calibration_size, calibration_interval, credit_factor,
-                           sigma_regularization, random_state):
+def _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates=None):
     """
-    Create a CompactEvoOptimizer for a specific parameter dimension.
+    Create an optimizer of the specified class.
     
     Args:
+        optimizer_class: The optimizer class to instantiate (e.g., CompactEvoOptimizer)
+        param_dim: Number of parameters to optimize
+        optimizer_config: Dictionary with optimizer configuration parameters
+        n_candidates: Number of candidates (for MultiCandidateOptimizer, ignored for others)
+        
+    Returns:
+        Optimizer instance of the specified class
+    """
+    # Handle MultiCandidateOptimizer which needs n_candidates
+    if optimizer_class == MultiCandidateOptimizer:
+        if n_candidates is None:
+            n_candidates = 3  # Default for MultiCandidate
+        return optimizer_class(
+            param_dim=param_dim,
+            n_candidates=n_candidates,
+            **optimizer_config
+        )
+    else:
+        return optimizer_class(
+            param_dim=param_dim,
+            **optimizer_config
+        )
+
+
+def _create_layer_optimizer(optimizer_class, param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
+                           calibration_size, calibration_interval, credit_factor,
+                           sigma_regularization, random_state, n_candidates=None):
+    """
+    Create an optimizer of the specified class for a specific parameter dimension.
+    
+    Args:
+        optimizer_class: The optimizer class to instantiate (e.g., CompactEvoOptimizer)
         param_dim: Number of parameters to optimize
         lr_mu: Learning rate for mean
         lr_sigma: Learning rate for sigma
@@ -73,22 +103,80 @@ def _create_layer_optimizer(param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
         credit_factor: Credit assignment strength
         sigma_regularization: Sigma regularization strength
         random_state: Random state
+        n_candidates: Number of candidates (for MultiCandidateOptimizer, ignored for others)
         
     Returns:
-        CompactEvoOptimizer: Configured optimizer instance
+        Optimizer instance of the specified class
     """
-    return CompactEvoOptimizer(
-        param_dim=param_dim,
-        lr_mu=lr_mu,
-        lr_sigma=lr_sigma,
-        sigma_min=sigma_min,
-        sigma_max=sigma_max,
-        calibration_size=calibration_size,
-        calibration_interval=calibration_interval,
-        credit_factor=credit_factor,
-        sigma_regularization=sigma_regularization,
-        random_state=random_state
-    )
+    optimizer_config = {
+        'lr_mu': lr_mu,
+        'lr_sigma': lr_sigma,
+        'sigma_min': sigma_min,
+        'sigma_max': sigma_max,
+        'calibration_size': calibration_size,
+        'calibration_interval': calibration_interval,
+        'credit_factor': credit_factor,
+        'sigma_regularization': sigma_regularization,
+        'random_state': random_state
+    }
+    
+    return _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates)
+
+
+def _create_stateless_loss_func(network, loss_func):
+    """
+    Create a stateless loss function that prevents network state pollution.
+    
+    This function wraps the given loss function to ensure the network state
+    is preserved after each loss evaluation, preventing side effects during optimization.
+    
+    Args:
+        network: Sequential network instance
+        loss_func: The base loss function to wrap (takes params, returns loss)
+        
+    Returns:
+        function: Stateless loss function
+    """
+    def stateless_loss_func(params):
+        current = network.get_all_parameters()
+        network.set_all_parameters(params)
+        loss = loss_func(params)
+        network.set_all_parameters(current)
+        return loss
+    return stateless_loss_func
+
+
+def _run_optimizer_training(optimizer, stateless_loss_func, max_iterations, early_stopping, patience):
+    """
+    Run the optimizer training loop with early stopping support.
+    
+    Args:
+        optimizer: The optimizer instance to train
+        stateless_loss_func: Stateless loss function for evaluation
+        max_iterations: Maximum number of iterations
+        early_stopping: Whether to use early stopping
+        patience: Patience for early stopping
+        
+    Returns:
+        tuple: (best_loss, patience_counter) after training
+    """
+    best_loss = float('inf')
+    patience_counter = 0
+    
+    for iteration in range(max_iterations):
+        loss = optimizer.step(stateless_loss_func, iteration=iteration)
+        
+        if early_stopping:
+            current_loss = stateless_loss_func(optimizer.get_parameters())
+            if current_loss < best_loss:
+                best_loss = current_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    break
+    
+    return best_loss, patience_counter
 
 
 def _train_single_layer(layer_optimizer, layer_params, layer_loss_func,
@@ -108,76 +196,50 @@ def _train_single_layer(layer_optimizer, layer_params, layer_loss_func,
     """
     layer_optimizer.initialize(layer_params)
     
-    best_layer_loss = float('inf')
-    layer_patience_counter = 0
-    
-    for iteration in range(max_iterations):
-        loss = layer_optimizer.step(layer_loss_func, iteration=iteration)
-        
-        # Check for plateau
-        current_layer_loss = layer_loss_func(layer_optimizer.get_parameters())
-        if current_layer_loss < best_layer_loss:
-            best_layer_loss = current_layer_loss
-            layer_patience_counter = 0
-        else:
-            layer_patience_counter += 1
-            if layer_patience_counter >= layer_patience:
-                break
+    # Use the shared training loop with early stopping always enabled
+    _run_optimizer_training(
+        layer_optimizer, layer_loss_func, max_iterations, True, layer_patience
+    )
     
     return layer_optimizer.get_parameters()
 
 
-def _train_all_layers_together(network, optimizer_config, loss_func,
-                               max_iterations, early_stopping, patience):
+def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_func,
+                               max_iterations, early_stopping, patience, n_candidates=None):
     """
-    Train all layers together using the full network optimizer.
+    Train all layers together using the specified optimizer class.
     
     Args:
         network: Sequential network instance
+        optimizer_class: The optimizer class to use
         optimizer_config: Dictionary with optimizer configuration
         loss_func: Loss function for full network
         max_iterations: Maximum number of iterations
         early_stopping: Whether to use early stopping
         patience: Patience for early stopping
+        n_candidates: Number of candidates (for MultiCandidateOptimizer)
         
     Returns:
-        CompactEvoOptimizer: Trained optimizer with final parameters
+        Optimizer instance with final parameters
     """
     param_dim = network.parameter_count()
-    final_optimizer = CompactEvoOptimizer(
-        param_dim=param_dim,
-        lr_mu=optimizer_config['lr_mu'],
-        lr_sigma=optimizer_config['lr_sigma'],
-        sigma_min=optimizer_config['sigma_min'],
-        sigma_max=optimizer_config['sigma_max'],
-        calibration_size=optimizer_config['calibration_size'],
-        calibration_interval=optimizer_config['calibration_interval'],
-        credit_factor=optimizer_config['credit_factor'],
-        sigma_regularization=optimizer_config['sigma_regularization'],
-        random_state=optimizer_config['random_state']
+    
+    # Create optimizer of specified class using utility function
+    final_optimizer = _create_optimizer(
+        optimizer_class, param_dim, optimizer_config, n_candidates
     )
     
     # Initialize with current parameters
     current_params = network.get_all_parameters()
     final_optimizer.initialize(current_params)
-    network.set_all_parameters(final_optimizer.get_parameters())
+    
+    # Create stateless loss function to prevent state pollution
+    stateless_loss_func = _create_stateless_loss_func(network, loss_func)
     
     # Train all layers together
-    best_loss = float('inf')
-    patience_counter = 0
-    
-    for iteration in range(max_iterations):
-        loss = final_optimizer.step(loss_func, iteration=iteration)
-        
-        if early_stopping:
-            current_loss = loss_func(final_optimizer.get_parameters())
-            if current_loss < best_loss:
-                best_loss = current_loss
-                patience_counter = 0
-            else:
-                patience_counter += 1
-                if patience_counter >= patience:
-                    break
+    _run_optimizer_training(
+        final_optimizer, stateless_loss_func, max_iterations, early_stopping, patience
+    )
     
     return final_optimizer
 
@@ -188,7 +250,8 @@ class BaseModel(BaseEstimator):
                  lr_mu=0.05, lr_sigma=0.005, sigma_min=0.001, sigma_max=1.0,
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
-                 patience=20, random_state=None, layer_patience=50):
+                 patience=20, random_state=None, layer_patience=50,
+                 use_layerwise=False, optimizer=CompactEvoOptimizer, n_candidates=None):
         
         # Store hyperparameters
         self.layers = layers
@@ -206,6 +269,9 @@ class BaseModel(BaseEstimator):
         self.patience = patience
         self.random_state = random_state
         self.layer_patience = layer_patience
+        self.use_layerwise = use_layerwise
+        self.optimizer = optimizer
+        self.n_candidates = n_candidates
         
         # Will be initialized in fit()
         self._random_state = None
@@ -272,12 +338,12 @@ class BaseModel(BaseEstimator):
         all_params[-1] = target_mean
         self.network_.set_all_parameters(all_params)
     
-    def _create_layer_loss_func(self, layer_params, start_param, end_param, full_loss_func):
+    def _create_layer_loss_func(self, base_all_params, start_param, end_param, full_loss_func):
         """
-        Create a layer-specific loss function that only updates one layer.
+        Create a stateless layer-specific loss function that only updates one layer.
         
         Args:
-            layer_params: Parameters for this layer
+            base_all_params: Captured full network parameters (for stateless evaluation)
             start_param: Start index of layer parameters in full parameter array
             end_param: End index of layer parameters in full parameter array
             full_loss_func: Full network loss function
@@ -286,14 +352,18 @@ class BaseModel(BaseEstimator):
             function: Layer-specific loss function
         """
         def layer_loss_func(layer_params):
-            # Combine with other layers' parameters
+            # Combine with captured base parameters (stateless)
             full_params = np.concatenate([
-                self.network_.get_all_parameters()[:start_param],
+                base_all_params[:start_param],
                 layer_params,
-                self.network_.get_all_parameters()[end_param:]
+                base_all_params[end_param:]
             ])
+            # Save and restore network state to prevent pollution
+            current_params = self.network_.get_all_parameters()
             self.network_.set_all_parameters(full_params)
-            return full_loss_func(full_params)
+            loss = full_loss_func(full_params)
+            self.network_.set_all_parameters(current_params)
+            return loss
         return layer_loss_func
     
     def _update_layer_parameters(self, trained_layer_params, start_param, end_param):
@@ -346,19 +416,23 @@ class BaseModel(BaseEstimator):
             start_param, end_param = layer_param_ranges[layer_idx]
             layer_param_dim = end_param - start_param
             
-            # Create optimizer for this layer
+            # Get current base parameters for stateless evaluation
+            current_all_params = self.network_.get_all_parameters()
+            
+            # Create optimizer for this layer using specified optimizer class
             layer_optimizer = _create_layer_optimizer(
+                self.optimizer,
                 param_dim=layer_param_dim,
+                n_candidates=self.n_candidates,
                 **optimizer_config
             )
             
             # Get current layer parameters
-            current_all_params = self.network_.get_all_parameters()
             layer_params = current_all_params[start_param:end_param]
             
-            # Create layer-specific loss function
+            # Create stateless layer-specific loss function
             layer_loss_func = self._create_layer_loss_func(
-                layer_params, start_param, end_param, loss_func
+                current_all_params, start_param, end_param, loss_func
             )
             
             # Train this layer
@@ -375,11 +449,57 @@ class BaseModel(BaseEstimator):
         final_iterations = self.max_iter // 2
         final_optimizer = _train_all_layers_together(
             network=self.network_,
+            optimizer_class=self.optimizer,
             optimizer_config=optimizer_config,
             loss_func=loss_func,
             max_iterations=final_iterations,
             early_stopping=self.early_stopping,
-            patience=self.patience
+            patience=self.patience,
+            n_candidates=self.n_candidates
+        )
+        
+        # Set final parameters
+        self.network_.set_all_parameters(final_optimizer.get_parameters())
+        self.optimizer_ = final_optimizer  # Store optimizer for reference
+    
+    def _fit_direct(self, X, y, loss_func=None):
+        """
+        Train network with all layers together (direct training).
+        
+        Args:
+            X: Input data
+            y: Target data
+            loss_func: Optional custom loss function. If None, uses _create_loss_func
+        """
+        if loss_func is None:
+            loss_func = self._create_loss_func(X, y)
+        
+        # Initialize network
+        self.network_.initialize(self.n_features_)
+        self._initialize_parameters_with_scale_awareness(y)
+        
+        # Get optimizer configuration
+        optimizer_config = self._get_optimizer_config()
+        
+        # Create optimizer of specified class for full network using utility function
+        n_candidates = self.n_candidates if self.n_candidates is not None else 3
+        final_optimizer = _create_optimizer(
+            self.optimizer,
+            param_dim=self.network_.parameter_count(),
+            optimizer_config=optimizer_config,
+            n_candidates=n_candidates
+        )
+        
+        # Create stateless loss function to prevent state pollution
+        stateless_loss_func = _create_stateless_loss_func(self.network_, loss_func)
+        
+        # Initialize optimizer
+        current_params = self.network_.get_all_parameters()
+        final_optimizer.initialize(current_params)
+        
+        # Train
+        _run_optimizer_training(
+            final_optimizer, stateless_loss_func, self.max_iter, self.early_stopping, self.patience
         )
         
         # Set final parameters
@@ -436,6 +556,14 @@ class EBGARegressor(BaseModel, RegressorMixin):
             Activation for output layer
         loss: str or Loss, default='mae'
             Loss function name or instance
+        optimizer: class, default=CompactEvoOptimizer
+            Optimizer class to use. Can be CompactEvoOptimizer or MultiCandidateOptimizer.
+        use_layerwise: bool, default=False
+            If True, use layer-wise training (train each layer in isolation, then all together).
+            If False, use direct training (train all layers together from start).
+        n_candidates: int, optional
+            Number of candidates for MultiCandidateOptimizer. Ignored for other optimizers.
+            If None and optimizer is MultiCandidateOptimizer, defaults to 3.
         lr_mu: float, default=0.03
             Learning rate for mean
         lr_sigma: float, default=0.03
@@ -488,7 +616,8 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  calibration_size=30, calibration_interval=50, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=10000, early_stopping=True, 
                  patience=100, layer_patience=50, normalize_output=False,
-                 random_state=None):
+                 random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
+                 n_candidates=None):
         
         # Store new parameters
         self.n_layers = n_layers
@@ -497,6 +626,9 @@ class EBGARegressor(BaseModel, RegressorMixin):
         self.layer_patience = layer_patience
         self.normalize_output = normalize_output
         self.output_activation = output_activation
+        self.use_layerwise = use_layerwise
+        self.optimizer = optimizer
+        self.n_candidates = n_candidates
         
         # Build layers if not provided
         if layers is None:
@@ -508,7 +640,8 @@ class EBGARegressor(BaseModel, RegressorMixin):
             calibration_size=calibration_size, calibration_interval=calibration_interval,
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
-            random_state=random_state, layer_patience=layer_patience
+            random_state=random_state, layer_patience=layer_patience,
+            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates
         )
         
         # Set up loss function
@@ -550,10 +683,12 @@ class EBGARegressor(BaseModel, RegressorMixin):
         
         # Build network
         self.network_ = self._build_network(self.n_features_, output_size=1)
-        self.network_.initialize(self.n_features_)
         
-        # Always use layer-wise training
-        self._fit_layer_wise(X, y_normalized)
+        # Choose training strategy
+        if self.use_layerwise:
+            self._fit_layer_wise(X, y_normalized)
+        else:
+            self._fit_direct(X, y_normalized)
         
         return self
     
@@ -620,6 +755,14 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             Activation for output layer
         loss: str or Loss, default='cross_entropy'
             Loss function name or instance
+        optimizer: class, default=CompactEvoOptimizer
+            Optimizer class to use. Can be CompactEvoOptimizer or MultiCandidateOptimizer.
+        use_layerwise: bool, default=False
+            If True, use layer-wise training (train each layer in isolation, then all together).
+            If False, use direct training (train all layers together from start).
+        n_candidates: int, optional
+            Number of candidates for MultiCandidateOptimizer. Ignored for other optimizers.
+            If None and optimizer is MultiCandidateOptimizer, defaults to 3.
         lr_mu: float, default=0.05
             Learning rate for mean
         lr_sigma: float, default=0.005
@@ -671,7 +814,8 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, layer_patience=50,
-                 random_state=None):
+                 random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
+                 n_candidates=None):
         
         # Store new parameters
         self.n_classes = n_classes
@@ -680,6 +824,9 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         self.inner_activation = inner_activation
         self.layer_patience = layer_patience
         self.output_activation = output_activation
+        self.use_layerwise = use_layerwise
+        self.optimizer = optimizer
+        self.n_candidates = n_candidates
         
         # Build layers if not provided
         if layers is None:
@@ -691,7 +838,8 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             calibration_size=calibration_size, calibration_interval=calibration_interval,
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
-            random_state=random_state, layer_patience=layer_patience
+            random_state=random_state, layer_patience=layer_patience,
+            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates
         )
         
         # Set up loss function
@@ -761,11 +909,16 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         
         # Build network
         self.network_ = self._build_network(self.n_features_, output_size=self.n_classes_)
-        self.network_.initialize(self.n_features_)
         
-        # Use shared layer-wise training with classification-specific loss
-        loss_func = self._create_classification_loss_func(X, y_onehot)
-        self._fit_layer_wise(X, y_onehot, loss_func=loss_func)
+        # Choose training strategy
+        if self.use_layerwise:
+            # Use layer-wise training with classification-specific loss
+            loss_func = self._create_classification_loss_func(X, y_onehot)
+            self._fit_layer_wise(X, y_onehot, loss_func=loss_func)
+        else:
+            # Use direct training with classification-specific loss
+            loss_func = self._create_classification_loss_func(X, y_onehot)
+            self._fit_direct(X, y_onehot, loss_func=loss_func)
         
         return self
     

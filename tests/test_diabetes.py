@@ -55,7 +55,8 @@ def run_test(random_state=42):
         max_iter=50000,
         early_stopping=False,
         patience=100,
-        random_state=random_state
+        random_state=random_state,
+        use_layerwise=True
     )
     
     print("\nTraining...")

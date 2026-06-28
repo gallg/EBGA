@@ -53,7 +53,8 @@ def run_test(random_state=42):
         lr_mu=0.01,
         lr_sigma=0.01,
         layer_patience=30,
-        random_state=random_state
+        random_state=random_state,
+        use_layerwise=True
     )
     
     print("\nTraining...")
