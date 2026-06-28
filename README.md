@@ -1,6 +1,6 @@
-# EBGA: Evolutionary-Based Gradient-Free Architecture
+# EBGA: Evolutionary Bayesian Geometric Adaptation
 
-**EBGA** (**E**volutionary-**B**ased **G**radient-free **A**rchitecture) is a gradient-free optimization framework that combines evolutionary computation with compact evolutionary algorithms.
+**EBGA** (**E**volutionary-**B**ayesian **G**eometric **A**daptation) is an optimization framework that combines evolutionary computation with Bayesian geometric principles and natural gradient methods.
 
 ## What's Inside
 
@@ -14,8 +14,8 @@ This package provides a **unified neural network framework** for both regression
 
 ## Key Features
 
-- ✅ **Completely gradient-free optimization** (no backpropagation)
-- ✅ **Modular architecture** - Similar to PyTorch but gradient-free
+- ✅ **Natural gradient optimization** (no backpropagation, uses distribution parameter gradients)
+- ✅ **Modular architecture** - Similar to PyTorch but without traditional gradients
 - ✅ **Continuous regression** - No binning, direct continuous output
 - ✅ **Layer-wise training** - Train layers sequentially until loss plateaus (default)
 - ✅ **Handles non-differentiable loss functions**
@@ -248,7 +248,7 @@ Available loss functions:
 - Maintains Gaussian distribution over parameters (μ, σ)
 - Uses natural gradient updates
 - Supports population calibration and pairwise updates
-- Fully gradient-free
+- Natural gradient-based (no objective function gradients)
 
 ## Hyperparameters
 

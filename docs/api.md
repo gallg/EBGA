@@ -300,4 +300,4 @@ The EBGA framework includes internal utility functions used for the layer-wise t
 - `_train_all_layers_together(...)`: Train all layers together using full network optimizer
 - `_build_layers_from_params_simple(...)`: Build layer configuration from simple parameters
 
-These functions are used internally by the models and provide the foundation for the layer-wise training approach that enables efficient gradient-free optimization.
+These functions are used internally by the models and provide the foundation for the layer-wise training approach that enables efficient natural gradient optimization.

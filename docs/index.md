@@ -1,4 +1,4 @@
-# EBGA: Evolutionary-Based Gradient-Free Architecture
+# EBGA: Evolutionary Bayesian Geometric Adaptation
 
 **EBGA** (**E**volutionary-**B**ased **G**radient-free **A**rchitecture) is a Python framework for training neural networks without gradients. It uses evolutionary computation to optimize parameters directly, making it suitable for problems where traditional gradient-based methods are ineffective or inappropriate.
 

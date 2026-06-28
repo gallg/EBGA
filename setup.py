@@ -7,7 +7,7 @@ setup(
     name="EBGA",
     version="0.1.0",
     author="Giuseppe Gallitto",
-    description="Evolutionary-Based Gradient-free Architecture - A gradient-free ML framework",
+    description="Evolutionary Bayesian Geometric Adaptation - A natural gradient ML framework",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://codeberg.org/Nevdyf/EBGA",

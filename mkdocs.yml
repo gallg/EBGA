@@ -1,5 +1,5 @@
 site_name: EBGA Framework
-site_description: Evolutionary-Based Gradient-Free Architecture for Machine Learning
+site_description: Evolutionary Bayesian Geometric Adaptation - A natural gradient ML framework
 site_author: Giuseppe Gallitto
 
 use_directory_urls: false

@@ -58,7 +58,7 @@ class Softmax(Activation):
         return x_exp / np.sum(x_exp, axis=axis, keepdims=True)
     
     def backward(self, x):
-        # Not typically used in gradient-free framework
+        # Not typically used in natural gradient framework
         raise NotImplementedError("Softmax backward not implemented")
 
 
