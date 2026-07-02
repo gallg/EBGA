@@ -2,11 +2,13 @@
 
 import numpy as np
 from sklearn.datasets import load_breast_cancer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.linear_model import RidgeClassifier
 
 from EBGA.models import EBGAClassifier
+from EBGA.search import EvoHyperoptSearch
 
 
 def run_test(random_state=42):
@@ -18,51 +20,129 @@ def run_test(random_state=42):
     print("=" * 70)
     
     # Load data
-    cancer = load_breast_cancer()
-    X, y = cancer.data, cancer.target
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=random_state
-    )
+    breast_cancer = load_breast_cancer()
+    X, y = breast_cancer.data, breast_cancer.target
+    n_classes = len(np.unique(y))
     
-    # Standardize
+    print(f"\nDataset: Breast Cancer")
+    print(f"Features: {X.shape[1]}, Classes: {n_classes}")
+    
+    # Nested CV for sklearn RidgeClassifier baseline
+    print("\n" + "-" * 70)
+    print("BASELINE: sklearn RidgeClassifier with Nested CV")
+    print("-" * 70)
+    
+    n_splits = 5
+    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
     
-    print(f"\nDataset: {cancer.DESCR.split('.')[0].strip()}")
-    print(f"Features: {X_train.shape[1]}, Classes: {len(np.unique(y))}")
-    print(f"Training samples: {X_train.shape[0]}, Test samples: {X_test.shape[0]}")
+    rc_acc_scores = []
+    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        rc_model = RidgeClassifier(random_state=random_state + outer_fold)
+        rc_model.fit(X_train_scaled, y_train)
+        rc_y_pred = rc_model.predict(X_test_scaled)
+        rc_acc = accuracy_score(y_test, rc_y_pred)
+        rc_acc_scores.append(rc_acc)
+        print(f"  Fold {outer_fold + 1}: Accuracy = {rc_acc:.4f}")
     
-    # Create model with explicit layers
-    print("\nModel configuration:")
-    print("  layers=[(10, 'sigmoid'), (10, 'sigmoid'), (2, 'softmax')]")
-    print("  n_classes=2")
-    print("  Layer-wise training: enabled")
+    avg_rc_acc = np.mean(rc_acc_scores)
+    std_rc_acc = np.std(rc_acc_scores)
+    print(f"RidgeClassifier Nested CV: Accuracy = {avg_rc_acc:.4f} ± {std_rc_acc:.4f}")
     
-    model = EBGAClassifier(
-        layers=[(10, 'sigmoid'), (10, 'sigmoid'), (2, 'softmax')],
-        n_classes=2,
-        max_iter=3000,
-        lr_mu=0.01,
-        lr_sigma=0.01,
-        early_stopping=False,
-        layer_patience=30,
-        random_state=random_state
-    )
+    # EBGA with Nested CV and hyperparameter tuning
+    print("\n" + "-" * 70)
+    print("EBGA: Nested Cross-Validation with Hyperparameter Tuning")
+    print("-" * 70)
     
-    print("\nTraining...")
-    model.fit(X_train, y_train)
+    # Define search space
+    param_distributions = {
+        'lr_mu': (0.01, 0.1, 'log-uniform'),
+        'lr_sigma': (0.001, 0.01, 'log-uniform'),
+        'max_iter': [100, 200, 500],
+        'use_layerwise': [True, False]
+    }
     
-    # Evaluate
-    y_pred = model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
+    # Setup outer CV
+    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     
-    print(f"\nResults:")
-    print(f"  Accuracy: {acc:.4f}")
-    print(f"\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=cancer.target_names))
+    # Arrays to store results
+    acc_scores = []
+    best_params_list = []
     
-    return model, acc, scaler
+    # Nested CV loop
+    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
+        print(f"\nOuter fold {outer_fold + 1}/{n_splits}")
+        
+        # Split data
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        # Scale data
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Inner CV for hyperparameter tuning
+        inner_cv = KFold(n_splits=3, shuffle=True, random_state=random_state + outer_fold)
+        
+        # Create search
+        search = EvoHyperoptSearch(
+            estimator=EBGAClassifier(
+                layers=[(8, 'relu'), (n_classes, 'softmax')],
+                n_classes=n_classes,
+                lr_mu=0.05,
+                lr_sigma=0.005,
+                sigma_min=0.001,
+                sigma_max=1.0,
+                calibration_size=20,
+                calibration_interval=25,
+                credit_factor=2.0,
+                early_stopping=True,
+                patience=20,
+                random_state=random_state + outer_fold * 100
+            ),
+            param_distributions=param_distributions,
+            n_iter=5,
+            cv=inner_cv,
+            search_strategy='random',
+            random_state=random_state + outer_fold * 1000,
+            verbose=0
+        )
+        
+        # Fit search
+        search.fit(X_train_scaled, y_train)
+        
+        # Get best model and parameters
+        best_params = search.best_params_
+        best_params_list.append(best_params)
+        
+        # Predict on test fold
+        y_pred = search.predict(X_test_scaled)
+        
+        # Calculate metrics
+        acc = accuracy_score(y_test, y_pred)
+        acc_scores.append(acc)
+        
+        print(f"  Best params: {best_params}")
+        print(f"  Accuracy: {acc:.4f}")
+    
+    # Calculate final nested CV results
+    avg_acc = np.mean(acc_scores)
+    std_acc = np.std(acc_scores)
+    
+    print(f"\n{'='*60}")
+    print("FINAL RESULTS - Breast Cancer")
+    print(f"{'='*60}")
+    print(f"sklearn RidgeClassifier: Accuracy = {avg_rc_acc:.4f} ± {std_rc_acc:.4f}")
+    print(f"EBGA Classifier:         Accuracy = {avg_acc:.4f} ± {std_acc:.4f}")
+    print(f"Best params: {best_params_list[np.argmax(acc_scores)]}")
+    
+    return avg_acc, avg_rc_acc
 
 
 if __name__ == "__main__":

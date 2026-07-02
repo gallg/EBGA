@@ -1,5 +1,5 @@
 import numpy as np
-from EBGA.activations import get_activation, ACTIVATION_REGISTRY
+from EBGA.activations import get_activation
 
 
 class Layer:
@@ -30,21 +30,18 @@ class Linear(Layer):
     def __init__(self, output_size, activation=None, use_bias=True):
         super().__init__()
         self.output_size = output_size
-        self.activation = get_activation(activation) if activation else None
+        # Handle activation: if it's a string, convert to activation instance; otherwise use as-is
+        if activation is not None and isinstance(activation, str):
+            self.activation = get_activation(activation)
+        else:
+            self.activation = activation
         self.use_bias = use_bias
     
     def initialize(self, input_size):
         self.input_size = input_size
-        
-        # Xavier/Glorot initialization
         limit = np.sqrt(6 / (self.input_size + self.output_size))
         self.W = np.random.uniform(-limit, limit, (self.output_size, self.input_size))
-        
-        if self.use_bias:
-            self.b = np.zeros(self.output_size)
-        else:
-            self.b = None
-        
+        self.b = np.zeros(self.output_size) if self.use_bias else None
         self.initialized = True
     
     def forward(self, x):
@@ -93,7 +90,7 @@ class Flatten(Layer):
     def forward(self, x):
         if not self.initialized:
             self.initialize(x.shape[1])
-        return x  # Flatten doesn't change anything for 2D input
+        return x
     
     def get_parameters(self):
         return np.array([])

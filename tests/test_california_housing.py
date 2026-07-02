@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from sklearn.datasets import load_wine
+from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, f1_score
-from sklearn.linear_model import RidgeClassifier
+from sklearn.metrics import r2_score
+from sklearn.linear_model import LinearRegression
 
-from EBGA.models import EBGAClassifier
+from EBGA.models import EBGARegressor
 from EBGA.search import EvoHyperoptSearch
 
 
@@ -16,27 +16,26 @@ def run_test(random_state=42):
     np.random.seed(random_state)
     
     print("=" * 70)
-    print("TEST: Wine Dataset (Classification)")
+    print("TEST: California Housing Dataset (Regression)")
     print("=" * 70)
     
     # Load data
-    wine = load_wine()
-    X, y = wine.data, wine.target
-    n_classes = len(np.unique(y))
+    housing = fetch_california_housing()
+    X, y = housing.data, housing.target
     
-    print(f"\nDataset: Wine")
-    print(f"Features: {X.shape[1]}, Classes: {n_classes}")
+    print(f"\nDataset: California Housing")
+    print(f"Features: {X.shape[1]}, Target range: [{y.min():.2f}, {y.max():.2f}]")
     
-    # Nested CV for sklearn RidgeClassifier baseline
+    # Nested CV for sklearn LinearRegression baseline
     print("\n" + "-" * 70)
-    print("BASELINE: sklearn RidgeClassifier with Nested CV")
+    print("BASELINE: sklearn LinearRegression with Nested CV")
     print("-" * 70)
     
     n_splits = 5
     outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     scaler = StandardScaler()
     
-    rc_acc_scores = []
+    lr_r2_scores = []
     for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
@@ -44,16 +43,16 @@ def run_test(random_state=42):
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
         
-        rc_model = RidgeClassifier(random_state=random_state + outer_fold)
-        rc_model.fit(X_train_scaled, y_train)
-        rc_y_pred = rc_model.predict(X_test_scaled)
-        rc_acc = accuracy_score(y_test, rc_y_pred)
-        rc_acc_scores.append(rc_acc)
-        print(f"  Fold {outer_fold + 1}: Accuracy = {rc_acc:.4f}")
+        lr_model = LinearRegression()
+        lr_model.fit(X_train_scaled, y_train)
+        lr_y_pred = lr_model.predict(X_test_scaled)
+        lr_r2 = r2_score(y_test, lr_y_pred)
+        lr_r2_scores.append(lr_r2)
+        print(f"  Fold {outer_fold + 1}: R² = {lr_r2:.4f}")
     
-    avg_rc_acc = np.mean(rc_acc_scores)
-    std_rc_acc = np.std(rc_acc_scores)
-    print(f"RidgeClassifier Nested CV: Accuracy = {avg_rc_acc:.4f} ± {std_rc_acc:.4f}")
+    avg_lr_r2 = np.mean(lr_r2_scores)
+    std_lr_r2 = np.std(lr_r2_scores)
+    print(f"LinearRegression Nested CV: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
     
     # EBGA with Nested CV and hyperparameter tuning
     print("\n" + "-" * 70)
@@ -62,9 +61,9 @@ def run_test(random_state=42):
     
     # Define search space
     param_distributions = {
-        'lr_mu': (0.01, 0.1, 'log-uniform'),
-        'lr_sigma': (0.001, 0.01, 'log-uniform'),
-        'max_iter': [100, 200, 500],
+        'lr_mu': (0.0001, 0.01, 'log-uniform'),
+        'lr_sigma': (0.00001, 0.001, 'log-uniform'),
+        'max_iter': [1000, 2000, 3000],
         'use_layerwise': [True, False]
     }
     
@@ -72,7 +71,7 @@ def run_test(random_state=42):
     outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     
     # Arrays to store results
-    acc_scores = []
+    r2_scores = []
     best_params_list = []
     
     # Nested CV loop
@@ -92,18 +91,15 @@ def run_test(random_state=42):
         
         # Create search
         search = EvoHyperoptSearch(
-            estimator=EBGAClassifier(
-                layers=[(8, 'relu'), (n_classes, 'softmax')],
-                n_classes=n_classes,
-                lr_mu=0.05,
-                lr_sigma=0.005,
-                sigma_min=0.001,
-                sigma_max=1.0,
-                calibration_size=20,
-                calibration_interval=25,
-                credit_factor=2.0,
+            estimator=EBGARegressor(
+                layers=[(8, 'relu'), (1, 'linear')],
+                normalize_output=True,
+                loss='mse',
+                calibration_size=30,
+                calibration_interval=50,
+                layer_patience=30,
                 early_stopping=True,
-                patience=20,
+                patience=50,
                 random_state=random_state + outer_fold * 100
             ),
             param_distributions=param_distributions,
@@ -125,24 +121,24 @@ def run_test(random_state=42):
         y_pred = search.predict(X_test_scaled)
         
         # Calculate metrics
-        acc = accuracy_score(y_test, y_pred)
-        acc_scores.append(acc)
+        r2 = r2_score(y_test, y_pred)
+        r2_scores.append(r2)
         
         print(f"  Best params: {best_params}")
-        print(f"  Accuracy: {acc:.4f}")
+        print(f"  R2: {r2:.4f}")
     
     # Calculate final nested CV results
-    avg_acc = np.mean(acc_scores)
-    std_acc = np.std(acc_scores)
+    avg_r2 = np.mean(r2_scores)
+    std_r2 = np.std(r2_scores)
     
     print(f"\n{'='*60}")
-    print("FINAL RESULTS - Wine")
+    print("FINAL RESULTS - California Housing")
     print(f"{'='*60}")
-    print(f"sklearn RidgeClassifier: Accuracy = {avg_rc_acc:.4f} ± {std_rc_acc:.4f}")
-    print(f"EBGA Classifier:         Accuracy = {avg_acc:.4f} ± {std_acc:.4f}")
-    print(f"Best params: {best_params_list[np.argmax(acc_scores)]}")
+    print(f"sklearn LinearRegression: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
+    print(f"EBGA Regressor:         R² = {avg_r2:.4f} ± {std_r2:.4f}")
+    print(f"Best params: {best_params_list[np.argmax(r2_scores)]}")
     
-    return avg_acc, avg_rc_acc
+    return avg_r2, avg_lr_r2
 
 
 if __name__ == "__main__":
