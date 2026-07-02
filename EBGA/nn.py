@@ -1,5 +1,4 @@
 import numpy as np
-from EBGA.layers import Layer
 
 
 class Sequential:

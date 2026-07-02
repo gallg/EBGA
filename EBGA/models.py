@@ -7,13 +7,12 @@ from sklearn.preprocessing import LabelBinarizer
 
 from EBGA.nn import Sequential
 from EBGA.layers import Linear
-from EBGA.activations import get_activation
 from EBGA.losses import get_loss
 from EBGA.optimizer import CompactEvoOptimizer, MultiCandidateOptimizer
 
 
 # =============================================================================
-# UTILITY FUNCTIONS FOR LAYER-WISE TRAINING
+# UTILITY FUNCTIONS
 # =============================================================================
 
 def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_activation):
@@ -35,25 +34,6 @@ def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_a
     # Output layer
     layers.append((1, output_activation))
     return layers
-
-
-def _create_layer_param_ranges(network):
-    """
-    Create parameter ranges for each layer in the network.
-    
-    Args:
-        network: Sequential network instance
-        
-    Returns:
-        list: List of (start, end) parameter index tuples for each layer
-    """
-    layer_param_ranges = []
-    offset = 0
-    for layer in network.layers:
-        param_count = layer.parameter_count()
-        layer_param_ranges.append((offset, offset + param_count))
-        offset += param_count
-    return layer_param_ranges
 
 
 def _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates=None):
@@ -84,43 +64,6 @@ def _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates
             **optimizer_config
         )
 
-
-def _create_layer_optimizer(optimizer_class, param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
-                           calibration_size, calibration_interval, credit_factor,
-                           sigma_regularization, random_state, n_candidates=None):
-    """
-    Create an optimizer of the specified class for a specific parameter dimension.
-    
-    Args:
-        optimizer_class: The optimizer class to instantiate (e.g., CompactEvoOptimizer)
-        param_dim: Number of parameters to optimize
-        lr_mu: Learning rate for mean
-        lr_sigma: Learning rate for sigma
-        sigma_min: Minimum sigma value
-        sigma_max: Maximum sigma value
-        calibration_size: Population size for calibration
-        calibration_interval: Calibration frequency
-        credit_factor: Credit assignment strength
-        sigma_regularization: Sigma regularization strength
-        random_state: Random state
-        n_candidates: Number of candidates (for MultiCandidateOptimizer, ignored for others)
-        
-    Returns:
-        Optimizer instance of the specified class
-    """
-    optimizer_config = {
-        'lr_mu': lr_mu,
-        'lr_sigma': lr_sigma,
-        'sigma_min': sigma_min,
-        'sigma_max': sigma_max,
-        'calibration_size': calibration_size,
-        'calibration_interval': calibration_interval,
-        'credit_factor': credit_factor,
-        'sigma_regularization': sigma_regularization,
-        'random_state': random_state
-    }
-    
-    return _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates)
 
 
 def _create_stateless_loss_func(network, loss_func):
@@ -178,30 +121,6 @@ def _run_optimizer_training(optimizer, stateless_loss_func, max_iterations, earl
     
     return best_loss, patience_counter
 
-
-def _train_single_layer(layer_optimizer, layer_params, layer_loss_func,
-                        max_iterations, layer_patience):
-    """
-    Train a single layer until plateau or max iterations.
-    
-    Args:
-        layer_optimizer: Optimizer for this layer
-        layer_params: Initial parameters for this layer
-        layer_loss_func: Loss function for layer optimization
-        max_iterations: Maximum number of iterations
-        layer_patience: Patience for early stopping
-        
-    Returns:
-        numpy.ndarray: Trained layer parameters
-    """
-    layer_optimizer.initialize(layer_params)
-    
-    # Use the shared training loop with early stopping always enabled
-    _run_optimizer_training(
-        layer_optimizer, layer_loss_func, max_iterations, True, layer_patience
-    )
-    
-    return layer_optimizer.get_parameters()
 
 
 def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_func,
@@ -281,6 +200,67 @@ class BaseModel(BaseEstimator):
         self.n_features_ = None
         self.n_classes_ = None
     
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+        
+        Parameters
+        ----------
+        deep : bool, default=True
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+        
+        Returns
+        -------
+        params : dict
+            Parameter names mapped to their values.
+        """
+        params = {
+            'layers': self.layers,
+            'output_activation': self.output_activation,
+            'lr_mu': self.lr_mu,
+            'lr_sigma': self.lr_sigma,
+            'sigma_min': self.sigma_min,
+            'sigma_max': self.sigma_max,
+            'calibration_size': self.calibration_size,
+            'calibration_interval': self.calibration_interval,
+            'credit_factor': self.credit_factor,
+            'sigma_regularization': self.sigma_regularization,
+            'max_iter': self.max_iter,
+            'early_stopping': self.early_stopping,
+            'patience': self.patience,
+            'random_state': self.random_state,
+            'layer_patience': self.layer_patience,
+            'use_layerwise': self.use_layerwise,
+            'optimizer': self.optimizer,
+            'n_candidates': self.n_candidates
+        }
+        return params
+    
+    def set_params(self, **params):
+        """
+        Set the parameters of this estimator.
+        
+        Parameters
+        ----------
+        **params : dict
+            Estimator parameters.
+        
+        Returns
+        -------
+        self : object
+            Estimator instance.
+        """
+        for param, value in params.items():
+            if hasattr(self, param):
+                setattr(self, param, value)
+            else:
+                # Handle nested parameters (for pipelines)
+                if '__' in param:
+                    # This will be handled by sklearn's set_params
+                    pass
+        return self
+    
     def _get_optimizer_config(self):
         """Get optimizer configuration as a dictionary."""
         return {
@@ -338,53 +318,13 @@ class BaseModel(BaseEstimator):
         all_params[-1] = target_mean
         self.network_.set_all_parameters(all_params)
     
-    def _create_layer_loss_func(self, base_all_params, start_param, end_param, full_loss_func):
-        """
-        Create a stateless layer-specific loss function that only updates one layer.
-        
-        Args:
-            base_all_params: Captured full network parameters (for stateless evaluation)
-            start_param: Start index of layer parameters in full parameter array
-            end_param: End index of layer parameters in full parameter array
-            full_loss_func: Full network loss function
-            
-        Returns:
-            function: Layer-specific loss function
-        """
-        def layer_loss_func(layer_params):
-            # Combine with captured base parameters (stateless)
-            full_params = np.concatenate([
-                base_all_params[:start_param],
-                layer_params,
-                base_all_params[end_param:]
-            ])
-            # Save and restore network state to prevent pollution
-            current_params = self.network_.get_all_parameters()
-            self.network_.set_all_parameters(full_params)
-            loss = full_loss_func(full_params)
-            self.network_.set_all_parameters(current_params)
-            return loss
-        return layer_loss_func
-    
-    def _update_layer_parameters(self, trained_layer_params, start_param, end_param):
-        """
-        Update network with trained layer parameters.
-        
-        Args:
-            trained_layer_params: Trained parameters for the layer
-            start_param: Start index of layer parameters
-            end_param: End index of layer parameters
-        """
-        updated_all_params = np.concatenate([
-            self.network_.get_all_parameters()[:start_param],
-            trained_layer_params,
-            self.network_.get_all_parameters()[end_param:]
-        ])
-        self.network_.set_all_parameters(updated_all_params)
-    
     def _fit_layer_wise(self, X, y, loss_func=None):
         """
-        Train network using layer-wise evolutionary optimization.
+        Train network using layer-wise evolutionary optimization with greedy pretraining.
+        
+        Each layer is trained as if it plus all previous layers form a complete model
+        that predicts the final output. For intermediate layers, a temporary output
+        layer is added to enable direct prediction from the current layer.
         
         This is the core training method used by both regressor and classifier.
         Subclasses can override this method or provide a custom loss_func.
@@ -399,53 +339,111 @@ class BaseModel(BaseEstimator):
         
         n_layers = len(self.network_.layers)
         
-        # Initialize all layers
+        # Initialize first layer
         self.network_.initialize(self.n_features_)
-        
-        # Initialize parameters with scale-aware output bias
         self._initialize_parameters_with_scale_awareness(y)
-        
-        # Get parameter ranges for each layer
-        layer_param_ranges = _create_layer_param_ranges(self.network_)
         
         # Get optimizer configuration
         optimizer_config = self._get_optimizer_config()
         
-        # Train layers sequentially
-        for layer_idx in range(n_layers):
-            start_param, end_param = layer_param_ranges[layer_idx]
-            layer_param_dim = end_param - start_param
-            
-            # Get current base parameters for stateless evaluation
-            current_all_params = self.network_.get_all_parameters()
-            
-            # Create optimizer for this layer using specified optimizer class
-            layer_optimizer = _create_layer_optimizer(
-                self.optimizer,
-                param_dim=layer_param_dim,
-                n_candidates=self.n_candidates,
-                **optimizer_config
-            )
-            
-            # Get current layer parameters
-            layer_params = current_all_params[start_param:end_param]
-            
-            # Create stateless layer-specific loss function
-            layer_loss_func = self._create_layer_loss_func(
-                current_all_params, start_param, end_param, loss_func
-            )
-            
-            # Train this layer
-            layer_iterations = self.max_iter // n_layers
-            trained_layer_params = _train_single_layer(
-                layer_optimizer, layer_params, layer_loss_func,
-                layer_iterations, self.layer_patience
-            )
-            
-            # Update network with trained layer parameters
-            self._update_layer_parameters(trained_layer_params, start_param, end_param)
+        # Determine if this is classification (need one-hot for temporary networks)
+        is_classification = hasattr(self, 'n_classes_') and self.n_classes_ is not None
+        if is_classification:
+            output_size = self.n_classes_
+            output_activation = 'softmax'
+        else:
+            output_size = 1
+            output_activation = 'linear'
         
-        # Final training pass on all layers together
+        # Create base loss function for partial networks
+        if is_classification:
+            # y is already one-hot encoded for classification
+            base_loss_func = lambda y_pred: self.loss_(y_pred, y)
+        else:
+            base_loss_func = lambda y_pred: self.loss_(y_pred, y)
+        
+        # Phase 1: Greedy layer-wise pretraining
+        for layer_idx in range(n_layers):
+            # Build partial network: create fresh copies of layers[0..layer_idx]
+            partial_layers = []
+            
+            for i in range(layer_idx + 1):
+                main_layer = self.network_.layers[i]
+                # Create a fresh copy of the layer with the same activation
+                new_layer = Linear(main_layer.output_size, activation=main_layer.activation)
+                partial_layers.append(new_layer)
+            
+            # Add temporary output layer if not the final layer
+            if layer_idx < n_layers - 1:
+                temp_output_layer = Linear(output_size, activation=output_activation)
+                partial_layers.append(temp_output_layer)
+            
+            # Create partial network
+            partial_network = Sequential(*partial_layers)
+            partial_network.initialize(self.n_features_)
+            
+            # Copy trained parameters from previous layers
+            if layer_idx > 0:
+                # Get parameters from main network for layers 0..layer_idx
+                main_params = self.network_.get_all_parameters()
+                partial_params = []
+                offset = 0
+                for i in range(layer_idx + 1):
+                    layer = self.network_.layers[i]
+                    layer_param_count = layer.parameter_count()
+                    partial_params.append(main_params[offset:offset + layer_param_count])
+                    offset += layer_param_count
+                
+                # Add random initialization for temporary output layer
+                if layer_idx < n_layers - 1:
+                    temp_param_count = partial_network.layers[-1].parameter_count()
+                    partial_params.append(
+                        np.random.randn(temp_param_count) * 0.01
+                    )
+                
+                partial_network.set_all_parameters(np.concatenate(partial_params))
+            
+            # Create optimizer for this partial network
+            partial_optimizer = _create_optimizer(
+                self.optimizer,
+                param_dim=partial_network.parameter_count(),
+                optimizer_config=optimizer_config,
+                n_candidates=self.n_candidates
+            )
+            
+            # Define loss function for partial network
+            def partial_loss(params):
+                partial_network.set_all_parameters(params)
+                y_pred = partial_network.forward(X)
+                if partial_network.output_size == 1:
+                    y_pred = y_pred.flatten()
+                loss = base_loss_func(y_pred)
+                # Add parameter clipping penalty for numerical stability
+                if np.any(np.abs(params) > 1e5):
+                    return float('inf')
+                return loss
+            
+            # Train partial network
+            partial_optimizer.initialize()
+            layer_iterations = self.max_iter // n_layers
+            
+            for iteration in range(layer_iterations):
+                partial_optimizer.step(partial_loss, iteration=iteration)
+            
+            # Copy trained parameters back to main network (only the non-temporary layers)
+            trained_params = partial_network.get_all_parameters()
+            main_params = self.network_.get_all_parameters()
+            
+            param_offset = 0
+            for i in range(layer_idx + 1):
+                layer_param_count = self.network_.layers[i].parameter_count()
+                main_params[param_offset:param_offset + layer_param_count] = \
+                    trained_params[param_offset:param_offset + layer_param_count]
+                param_offset += layer_param_count
+            
+            self.network_.set_all_parameters(main_params)
+        
+        # Phase 2: Fine-tuning all layers together
         final_iterations = self.max_iter // 2
         final_optimizer = _train_all_layers_together(
             network=self.network_,
@@ -645,6 +643,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
         )
         
         # Set up loss function
+        self._loss_str = loss if isinstance(loss, str) else None
         if isinstance(loss, str):
             self.loss_ = get_loss(loss)
         else:
@@ -655,6 +654,57 @@ class EBGARegressor(BaseModel, RegressorMixin):
         return _build_layers_from_params_simple(
             self.n_layers, self.h_dim, self.inner_activation, self.output_activation
         )
+    
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+        
+        Parameters
+        ----------
+        deep : bool, default=True
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+        
+        Returns
+        -------
+        params : dict
+            Parameter names mapped to their values.
+        """
+        params = super().get_params(deep)
+        params.update({
+            'n_layers': self.n_layers,
+            'h_dim': self.h_dim,
+            'inner_activation': self.inner_activation,
+            'loss': self._loss_str if hasattr(self, '_loss_str') and self._loss_str is not None else 'mse',
+            'normalize_output': self.normalize_output
+        })
+        return params
+    
+    def set_params(self, **params):
+        """
+        Set the parameters of this estimator.
+        
+        Parameters
+        ----------
+        **params : dict
+            Estimator parameters.
+        
+        Returns
+        -------
+        self : object
+            Estimator instance.
+        """
+        # Handle loss separately
+        if 'loss' in params:
+            loss = params.pop('loss')
+            if isinstance(loss, str):
+                self.loss_ = get_loss(loss)
+            else:
+                self.loss_ = loss
+        
+        # Handle other parameters
+        super().set_params(**params)
+        return self
     
     def fit(self, X, y):
         """
@@ -843,6 +893,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         )
         
         # Set up loss function
+        self._loss_str = loss if isinstance(loss, str) else None
         if isinstance(loss, str):
             self.loss_ = get_loss(loss)
         else:
@@ -850,12 +901,60 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
     
     def _build_layers_from_params(self):
         """Build layer configuration from n_layers, h_dim, and activations."""
-        layers = []
-        for i in range(self.n_layers):
-            layers.append((self.h_dim, self.inner_activation))
-        # Output layer - size will be set to n_classes in fit()
-        layers.append((1, self.output_activation))  # Will be resized in fit
-        return layers
+        return _build_layers_from_params_simple(
+            self.n_layers, self.h_dim, self.inner_activation, self.output_activation
+        )
+    
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+        
+        Parameters
+        ----------
+        deep : bool, default=True
+            If True, will return the parameters for this estimator and
+            contained subobjects that are estimators.
+        
+        Returns
+        -------
+        params : dict
+            Parameter names mapped to their values.
+        """
+        params = super().get_params(deep)
+        params.update({
+            'n_classes': self.n_classes,
+            'n_layers': self.n_layers,
+            'h_dim': self.h_dim,
+            'inner_activation': self.inner_activation,
+            'loss': self._loss_str if hasattr(self, '_loss_str') and self._loss_str is not None else 'cross_entropy'
+        })
+        return params
+    
+    def set_params(self, **params):
+        """
+        Set the parameters of this estimator.
+        
+        Parameters
+        ----------
+        **params : dict
+            Estimator parameters.
+        
+        Returns
+        -------
+        self : object
+            Estimator instance.
+        """
+        # Handle loss separately
+        if 'loss' in params:
+            loss = params.pop('loss')
+            if isinstance(loss, str):
+                self.loss_ = get_loss(loss)
+            else:
+                self.loss_ = loss
+        
+        # Handle other parameters
+        super().set_params(**params)
+        return self
     
     def _create_classification_loss_func(self, X, y_onehot):
         """

@@ -11,6 +11,7 @@ from EBGA.losses import (
 )
 from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, MultiCandidateOptimizer, OptimizationResult
 from EBGA.utils import save_model, load_model, save_network, load_network
+from EBGA.search import EvoHyperoptSearch
 
 __version__ = "0.1.0"
 
@@ -63,4 +64,7 @@ __all__ = [
     'load_model',
     'save_network',
     'load_network',
+    
+    # Search
+    'EvoHyperoptSearch',
 ]

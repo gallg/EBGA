@@ -1,11 +1,7 @@
 **/__pycache__
+**/.pytest_cache
 **/.DS_Store
 
 tests/temp/
 .venv/
 site/
-
-# Documentation build outputs
-*.html
-*.xml
-*.gz

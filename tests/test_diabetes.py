@@ -2,11 +2,13 @@
 
 import numpy as np
 from sklearn.datasets import load_diabetes
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.linear_model import LinearRegression
 
 from EBGA.models import EBGARegressor
+from EBGA.search import EvoHyperoptSearch
 
 
 def run_test(random_state=42):
@@ -20,56 +22,122 @@ def run_test(random_state=42):
     # Load data
     diabetes = load_diabetes()
     X, y = diabetes.data, diabetes.target
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=random_state
-    )
-    
-    # Standardize
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
     
     print(f"\nDataset: Diabetes")
-    print(f"Features: {X_train.shape[1]}, Target range: [{y.min():.2f}, {y.max():.2f}]")
-    print(f"Training samples: {X_train.shape[0]}, Test samples: {X_test.shape[0]}")
-    print(f"(sklearn LinearRegression baseline: R² ≈ 0.4526)")
+    print(f"Features: {X.shape[1]}, Target range: [{y.min():.2f}, {y.max():.2f}]")
     
-    # Create model with feature extraction layers
-    n_features = X_train.shape[1]
-    print("\nModel configuration:")
-    print(f"  layers=[({n_features}, 'relu'), (1, 'linear')]")
-    print("  normalize_output=True")
-    print("  loss='mse'")
-    print("  lr_mu=0.00055, lr_sigma=0.00008")
-    print("  Layer-wise training: enabled (evolutionary)")
+    # Nested CV for sklearn LinearRegression baseline
+    print("\n" + "-" * 70)
+    print("BASELINE: sklearn LinearRegression with Nested CV")
+    print("-" * 70)
     
-    model = EBGARegressor(
-        layers=[(32, 'relu'), (1, 'linear')],
-        normalize_output=True,
-        loss='mse',
-        lr_mu=0.00055,
-        lr_sigma=0.00008,
-        calibration_size=30,
-        calibration_interval=50,
-        layer_patience=30,
-        max_iter=50000,
-        early_stopping=False,
-        patience=100,
-        random_state=random_state,
-        use_layerwise=True
-    )
+    n_splits = 5
+    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    scaler = StandardScaler()
     
-    print("\nTraining...")
-    model.fit(X_train, y_train)
+    lr_r2_scores = []
+    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        lr_model = LinearRegression()
+        lr_model.fit(X_train_scaled, y_train)
+        lr_y_pred = lr_model.predict(X_test_scaled)
+        lr_r2 = r2_score(y_test, lr_y_pred)
+        lr_r2_scores.append(lr_r2)
     
-    # Evaluate
-    y_pred = model.predict(X_test)
-    r2 = r2_score(y_test, y_pred)
+    avg_lr_r2 = np.mean(lr_r2_scores)
+    std_lr_r2 = np.std(lr_r2_scores)
+    print(f"LinearRegression Nested CV: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
     
-    print(f"\nResults:")
-    print(f"  R² Score: {r2:.4f}")
+    # EBGA with Nested CV and hyperparameter tuning
+    print("\n" + "-" * 70)
+    print("EBGA: Nested Cross-Validation with Hyperparameter Tuning")
+    print("-" * 70)
     
-    return model, r2, scaler
+    # Define search space
+    param_distributions = {
+        'lr_mu': (0.0001, 0.01, 'log-uniform'),
+        'lr_sigma': (0.00001, 0.001, 'log-uniform'),
+        'max_iter': [1000, 2000, 5000],
+        'use_layerwise': [True, False]
+    }
+    
+    # Setup outer CV
+    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    
+    # Arrays to store results
+    r2_scores = []
+    best_params_list = []
+    
+    # Nested CV loop
+    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
+        print(f"\nOuter fold {outer_fold + 1}/{n_splits}")
+        
+        # Split data
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        
+        # Scale data
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Inner CV for hyperparameter tuning
+        inner_cv = KFold(n_splits=3, shuffle=True, random_state=random_state + outer_fold)
+        
+        # Create search
+        search = EvoHyperoptSearch(
+            estimator=EBGARegressor(
+                layers=[(8, 'relu'), (1, 'linear')],
+                normalize_output=True,
+                loss='mse',
+                calibration_size=30,
+                calibration_interval=50,
+                layer_patience=30,
+                early_stopping=True,
+                patience=50,
+                random_state=random_state + outer_fold * 100
+            ),
+            param_distributions=param_distributions,
+            n_iter=5,
+            cv=inner_cv,
+            search_strategy='random',
+            random_state=random_state + outer_fold * 1000,
+            verbose=0
+        )
+        
+        # Fit search
+        search.fit(X_train_scaled, y_train)
+        
+        # Get best model and parameters
+        best_params = search.best_params_
+        best_params_list.append(best_params)
+        
+        # Predict on test fold
+        y_pred = search.predict(X_test_scaled)
+        
+        # Calculate metrics
+        r2 = r2_score(y_test, y_pred)
+        r2_scores.append(r2)
+        
+        print(f"  Best params: {best_params}")
+        print(f"  R2: {r2:.4f}")
+    
+    # Calculate final nested CV results
+    avg_r2 = np.mean(r2_scores)
+    std_r2 = np.std(r2_scores)
+    
+    print(f"\n{'='*60}")
+    print("FINAL RESULTS - Diabetes")
+    print(f"{'='*60}")
+    print(f"sklearn LinearRegression: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
+    print(f"EBGA Regressor:         R² = {avg_r2:.4f} ± {std_r2:.4f}")
+    print(f"Best params: {best_params_list[np.argmax(r2_scores)]}")
+    
+    return avg_r2, avg_lr_r2
 
 
 if __name__ == "__main__":

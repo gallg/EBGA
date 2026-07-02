@@ -6,6 +6,15 @@
 
 Scikit-learn compatible regressor for neural network training with natural gradients.
 
+**Additional Methods:**
+- `get_params(deep=True)`: Get model parameters
+- `set_params(**params)`: Set model parameters
+
+**Notes:**
+- Supports both explicit layer specification via `layers` parameter and simple configuration via `n_layers`, `h_dim`, and `inner_activation`
+- Can use layer-wise training (`use_layerwise=True`) or direct training (`use_layerwise=False`)
+- Supports normalization of output via `normalize_output=True`
+
 ```python
 from EBGA.models import EBGARegressor
 
@@ -109,6 +118,95 @@ score = model.score(X, y)  # Returns accuracy
 **Parameters:** Same as EBGARegressor, plus:
 - `n_classes`: Number of classes (auto-inferred if None)
 - `loss`: Loss function ('cross_entropy')
+
+**Additional Methods:**
+- `get_params(deep=True)`: Get model parameters
+- `set_params(**params)`: Set model parameters
+- `predict_proba(X)`: Predict class probabilities
+
+---
+
+### EvoHyperoptSearch
+
+Hyperparameter optimization for EBGA models using evolutionary algorithms.
+
+```python
+from EBGA.search import EvoHyperoptSearch
+from EBGA.models import EBGARegressor
+
+search = EvoHyperoptSearch(
+    estimator=EBGARegressor(layers=[(50, 'relu'), (1, 'linear')]),
+    param_distributions={
+        'lr_mu': (0.0001, 0.01, 'log-uniform'),
+        'lr_sigma': (0.00001, 0.001, 'log-uniform'),
+        'max_iter': [1000, 5000, 10000],
+        'use_layerwise': [True, False]
+    },
+    n_iter=10,
+    cv=3,
+    search_strategy='evolutionary',
+    n_jobs=None,
+    scoring=None,
+    n_generations=5,
+    tournament_size=3,
+    elitism_count=1,
+    crossover_rate=0.8,
+    mutation_rate=0.2,
+    mutation_scale=0.1,
+    early_stopping_rounds=3,
+    random_state=None,
+    verbose=0
+)
+
+search.fit(X_train, y_train)
+print(f"Best parameters: {search.best_params_}")
+print(f"Best score: {search.best_score_}")
+y_pred = search.predict(X_test)
+```
+
+**Parameters:**
+- `estimator`: EBGA model or pipeline to optimize
+- `param_distributions`: Dictionary mapping parameter names to their distributions:
+  - Continuous: `(min, max)` or `(min, max, 'log-uniform')` or `(min, max, 'uniform')`
+  - Discrete: `[choice1, choice2, ...]`
+  - Boolean: `[True, False]`
+  - Integer: `(min, max)` or `[choice1, choice2, ...]`
+- `n_iter`: Number of parameter settings to sample (for random) or population size (for evolutionary)
+- `cv`: Cross-validation strategy (int or cross-validator)
+- `search_strategy`: `'random'`, `'evolutionary'`, or `'hybrid'`
+- `n_jobs`: Number of parallel jobs for cross-validation
+- `scoring`: Scoring metric (uses estimator's default if None)
+- `n_generations`: Number of generations for evolutionary search
+- `tournament_size`: Tournament size for selection in evolutionary search
+- `elitism_count`: Number of best individuals to preserve between generations
+- `crossover_rate`: Crossover rate for evolutionary search
+- `mutation_rate`: Mutation rate for evolutionary search
+- `mutation_scale`: Scale for mutation strength
+- `early_stopping_rounds`: Stop if no improvement for this many generations
+- `random_state`: Random seed for reproducibility
+- `verbose`: Verbosity level (0=silent, 1=progress, 2=debug)
+
+**Attributes:**
+- `best_estimator_`: The best estimator found during search
+- `best_params_`: The best parameter set found during search
+- `best_score_`: The best score found during search
+- `cv_results_`: Detailed cross-validation results
+- `best_index_`: Index of the best parameter set
+- `n_splits_`: Number of cross-validation splits
+
+**Methods:**
+- `fit(X, y)`: Run hyperparameter search
+- `predict(X)`: Predict using the best estimator
+- `predict_proba(X)`: Predict probabilities using the best estimator (if available)
+- `score(X, y)`: Score using the best estimator
+- `transform(X)`: Transform using the best estimator (for pipelines)
+- `get_params(deep=True)`: Get parameters for this estimator
+- `set_params(**params)`: Set parameters for this estimator
+
+**Search Strategies:**
+- `'random'`: Simple random search (baseline)
+- `'evolutionary'`: Evolutionary search with selection, crossover, mutation
+- `'hybrid'`: Start with random exploration, refine with evolutionary search
 
 ---
 
