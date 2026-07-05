@@ -14,13 +14,12 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 - **Distribution-based optimization** - Parameters optimized through Gaussian distributions
 - **Handles non-differentiable losses** - Works with any loss function
 - **Flexible training modes** - Layer-wise or direct training
-- **Built-in hyperparameter tuning** - Evolutionary search for optimal model configuration
+
 
 ### Available Models
 
 - **EBGARegressor** - For regression tasks
 - **EBGAClassifier** - For classification tasks
-- **EvoHyperoptSearch** - For hyperparameter tuning with evolutionary search
 
 ### Available Optimizers
 
@@ -133,48 +132,6 @@ y_pred = network.forward(X_test)
 
 **Important:** The current EBGA implementation only supports `Linear` (Dense) layers. Convolutional, recurrent, and other layer types are not yet available.
 
-## Hyperparameter Tuning
-
-EBGA models are hyperparameter-heavy, requiring optimization across multiple dimensions. The framework provides built-in hyperparameter search functionality:
-
-```python
-from EBGA.models import EBGARegressor
-from EBGA.search import EvoHyperoptSearch
-from sklearn.model_selection import train_test_split
-
-# Load data
-X, y = load_diabetes(return_X_y=True)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-
-# Define search space
-param_distributions = {
-    'lr_mu': (0.0001, 0.01, 'log-uniform'),
-    'lr_sigma': (0.00001, 0.001, 'log-uniform'),
-    'max_iter': [1000, 5000, 10000],
-    'use_layerwise': [True, False]
-}
-
-# Run hyperparameter search
-search = EvoHyperoptSearch(
-    estimator=EBGARegressor(layers=[(50, 'relu'), (1, 'linear')]),
-    param_distributions=param_distributions,
-    n_iter=10,
-    cv=3,
-    search_strategy='evolutionary',  # or 'random', 'hybrid'
-    random_state=42
-)
-search.fit(X_train, y_train)
-
-# Use best model
-print(f"Best parameters: {search.best_params_}")
-print(f"Best score: {search.best_score_:.4f}")
-y_pred = search.predict(X_test)
-```
-
-**Search Strategies:**
-- `'random'`: Simple random search (baseline)
-- `'evolutionary'`: Evolutionary search with selection, crossover, mutation
-- `'hybrid'`: Combines random exploration with evolutionary refinement
 
 ## License
 
