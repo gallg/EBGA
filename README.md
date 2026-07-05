@@ -24,8 +24,7 @@ EBGA offers a familiar API to create neural network-based models, similar to kno
 
 ### Available Optimizers
 
-- **CompactEvoOptimizer** - Single gaussian distribution per parameter based on compact genetic algorithms.
-- **MultiCandidateOptimizer** - Multiple candidate distributions per parameter for high-dimensional data.
+- **CompactEvoOptimizer** - Single Gaussian distribution with diagonal covariance for parameter optimization using natural gradient updates. Features include momentum, trust region constraints, and adaptive calibration.
 
 ## Installation
 

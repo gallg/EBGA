@@ -13,7 +13,7 @@ from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, OptimizationRe
 from EBGA.utils import save_model, load_model, save_network, load_network
 from EBGA.search import EvoHyperoptSearch
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     # Models

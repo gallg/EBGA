@@ -27,7 +27,6 @@ model = EBGARegressor(
     loss='mae',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,
-    n_candidates=None,
     sigma_regularization=0.0,
     max_iter=10000,
     lr_mu=0.03,
@@ -56,9 +55,8 @@ score = model.score(X, y)  # Returns R²
 - `inner_activation`: Activation function for hidden layers
 - `output_activation`: Activation function for output layer
 - `loss`: Loss function ('mse' or 'mae')
-- `optimizer`: Optimizer class (CompactEvoOptimizer or MultiCandidateOptimizer)
+- `optimizer`: Optimizer class (currently only CompactEvoOptimizer is supported)
 - `use_layerwise`: If True, use layer-wise training; if False, train all layers together
-- `n_candidates`: Number of candidates for MultiCandidateOptimizer (ignored for CompactEvoOptimizer)
 - `sigma_regularization`: Strength of sigma diversity regularization
 - `max_iter`: Maximum training iterations
 - `lr_mu`: Learning rate for mean parameters
@@ -93,7 +91,6 @@ model = EBGAClassifier(
     loss='cross_entropy',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,
-    n_candidates=None,
     sigma_regularization=0.0,
     max_iter=500,
     lr_mu=0.05,
@@ -101,7 +98,7 @@ model = EBGAClassifier(
     sigma_min=0.001,
     sigma_max=1.0,
     calibration_size=20,
-    calibration_interval=25,
+    calibration_interval=50,
     credit_factor=2.0,
     early_stopping=True,
     patience=20,
@@ -328,9 +325,11 @@ optimizer = CompactEvoOptimizer(
     sigma_min=0.001,
     sigma_max=1.0,
     calibration_size=20,
-    calibration_interval=25,
+    calibration_interval=50,
     credit_factor=2.0,
     sigma_regularization=0.0,
+    momentum=0.5,
+    trust_region_radius=None,
     random_state=None
 )
 
@@ -346,9 +345,11 @@ params = optimizer.get_parameters()
 - `sigma_min`: Minimum sigma value
 - `sigma_max`: Maximum sigma value
 - `calibration_size`: Population size for calibration
-- `calibration_interval`: Frequency of population calibration
+- `calibration_interval`: Frequency of population calibration (default: 50)
 - `credit_factor`: Strength of credit assignment
 - `sigma_regularization`: Strength of sigma regularization
+- `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)
+- `trust_region_radius`: Maximum allowed update norm (L2) per step for stability
 - `random_state`: Random seed
 
 **Methods:**
@@ -359,35 +360,6 @@ params = optimizer.get_parameters()
 **Attributes:**
 - `mu`: Current mean parameters
 - `sigma`: Current standard deviation parameters
-
-### MultiCandidateOptimizer
-
-Distribution-based evolutionary optimizer with multiple candidate distributions per parameter.
-
-```python
-from EBGA.optimizer import MultiCandidateOptimizer
-
-optimizer = MultiCandidateOptimizer(
-    param_dim,
-    n_candidates=3,
-    lr_mu=0.05,
-    lr_sigma=0.005,
-    sigma_min=0.001,
-    sigma_max=1.0,
-    calibration_size=20,
-    calibration_interval=25,
-    credit_factor=2.0,
-    sigma_regularization=0.0,
-    random_state=None
-)
-
-optimizer.initialize(initial_params)
-loss = optimizer.step(loss_func, iteration=iter)
-params = optimizer.get_parameters()
-```
-
-**Parameters:** Same as CompactEvoOptimizer, plus:
-- `n_candidates`: Number of candidate distributions per parameter (default: 3)
 
 ---
 

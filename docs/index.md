@@ -24,8 +24,9 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 
 ### Available Optimizers
 
-- **CompactEvoOptimizer** - Single distribution per parameter
-- **MultiCandidateOptimizer** - Multiple candidate distributions per parameter
+- **CompactEvoOptimizer** - Single Gaussian distribution with diagonal covariance for parameter optimization using natural gradient updates. Features include momentum, trust region constraints, and adaptive calibration.
+
+> **Note:** MultiCandidateOptimizer has been removed in version 0.1.1. The package now focuses on the more robust CompactEvoOptimizer implementation.
 
 ## Installation
 
