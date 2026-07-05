@@ -180,6 +180,14 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             Strength of sigma diversity regularization. If > 0, adds a term that
             encourages larger sigma values to prevent regression to mean.
             Uses -log(sigma) regularization similar to VAEs.
+        momentum: float, default=0.5
+            Momentum coefficient for velocity-based parameter updates.
+            If 0, no momentum is used. Values close to 1 provide smoother updates.
+        trust_region_radius: float, default=None
+            Maximum allowed update norm (L2) per step. Updates exceeding this
+            radius are clipped proportionally to maintain stability.
+            Set to None or 0 to disable trust region clipping. Recommended values
+            are in range [0.01, 1.0] for typical problems.
         bounds: tuple, optional
             (lower, upper) bounds for each parameter
         budget: int, optional
@@ -190,14 +198,22 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
     
     def __init__(self, param_dim, lr_mu=0.05, lr_sigma=0.005,
                  sigma_min=0.001, sigma_max=1.0,
-                 calibration_size=20, calibration_interval=25,
+                 calibration_size=20, calibration_interval=50,
                  credit_factor=2.0, sigma_regularization=0.0,
+                 momentum=0.5, trust_region_radius=None,
                  bounds=None, budget=None, random_state=None):
         
         super().__init__(param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
                         calibration_size, calibration_interval,
                         credit_factor, sigma_regularization,
                         bounds, budget, random_state)
+        
+        # Momentum parameters
+        self.momentum = momentum
+        self.velocity = None
+        
+        # Trust region
+        self.trust_region_radius = trust_region_radius
         
         # Initialize distribution parameters
         self.mu = None
@@ -210,7 +226,9 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         else:
             self.mu = self.rng.randn(self.param_dim) * 0.01
         
+        # Initialize sigma to constant value; per-dimension adaptation happens during optimization
         self.sigma = np.ones(self.param_dim) * 0.1
+        self.velocity = np.zeros(self.param_dim) if self.momentum > 0 else None
         self.num_evaluations = 0
     
     def _clip_parameters(self):
@@ -219,6 +237,17 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             lower, upper = self.bounds
             self.mu = np.clip(self.mu, lower, upper)
             self.sigma = np.clip(self.sigma, 0, np.inf)
+    
+    def _apply_trust_region(self, update):
+        """Apply trust region constraint to update vector."""
+        if self.trust_region_radius is None or self.trust_region_radius <= 0:
+            return update
+        
+        update_norm = np.linalg.norm(update)
+        if update_norm > self.trust_region_radius:
+            # Clip proportionally
+            update = update * (self.trust_region_radius / (update_norm + 1e-8))
+        return update
     
     def _population_step(self, loss_func):
         """
@@ -250,8 +279,19 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         adaptive_lr_mu = self.lr_mu / (self.loss_scale + 1e-8)
         adaptive_lr_sigma = self.lr_sigma / (self.loss_scale + 1e-8)
         
+        # Compute update
+        update = adaptive_lr_mu * grad_mu
+        
+        # Apply momentum if enabled
+        if self.momentum > 0 and self.velocity is not None:
+            self.velocity = self.momentum * self.velocity + update
+            update = self.velocity
+        
+        # Apply trust region constraint
+        update = self._apply_trust_region(update)
+        
         # Update distribution
-        self.mu -= adaptive_lr_mu * grad_mu
+        self.mu -= update
         self.sigma *= np.exp(adaptive_lr_sigma * grad_sigma)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
         
@@ -298,8 +338,19 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         loser_diff = loser - self.mu
         update_mag = np.clip(np.abs(winner_diff) / (np.abs(loser_diff) + eps), 0.1, 10)
         
+        # Compute update
+        update = self.lr_mu * update_strength * update_mag * winner_diff
+        
+        # Apply momentum if enabled
+        if self.momentum > 0 and self.velocity is not None:
+            self.velocity = self.momentum * self.velocity + update
+            update = self.velocity
+        
+        # Apply trust region constraint
+        update = self._apply_trust_region(update)
+        
         # Update mean towards winner
-        self.mu += self.lr_mu * update_strength * update_mag * winner_diff
+        self.mu += update
         
         # Update sigma based on observed diversity
         observed_diversity = np.abs(winner - loser)
@@ -313,7 +364,7 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         self.sigma *= np.exp(sigma_update)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
         
-        return (loss1 + loss2) / 2
+        return avg_loss
     
     def get_parameters(self):
         """Return the current mean parameters."""
@@ -326,17 +377,23 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
     def set_parameters(self, params):
         """Set the mean parameters."""
         self.mu = np.array(params)
+        # Reset velocity when parameters are explicitly set
+        if self.momentum > 0:
+            self.velocity = np.zeros(self.param_dim)
     
     def state_dict(self):
         """Return state dictionary for saving."""
         return {
             'mu': self.mu,
             'sigma': self.sigma,
+            'velocity': self.velocity,
             'lr_mu': self.lr_mu,
             'lr_sigma': self.lr_sigma,
             'sigma_min': self.sigma_min,
             'sigma_max': self.sigma_max,
             'sigma_regularization': self.sigma_regularization,
+            'momentum': self.momentum,
+            'trust_region_radius': self.trust_region_radius,
             'num_evaluations': self.num_evaluations,
             'loss_scale': self.loss_scale,
         }
@@ -345,11 +402,14 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         """Load state from dictionary."""
         self.mu = state_dict['mu']
         self.sigma = state_dict['sigma']
+        self.velocity = state_dict.get('velocity', None)
         self.lr_mu = state_dict.get('lr_mu', self.lr_mu)
         self.lr_sigma = state_dict.get('lr_sigma', self.lr_sigma)
         self.sigma_min = state_dict.get('sigma_min', self.sigma_min)
         self.sigma_max = state_dict.get('sigma_max', self.sigma_max)
         self.sigma_regularization = state_dict.get('sigma_regularization', self.sigma_regularization)
+        self.momentum = state_dict.get('momentum', self.momentum)
+        self.trust_region_radius = state_dict.get('trust_region_radius', self.trust_region_radius)
         self.num_evaluations = state_dict.get('num_evaluations', 0)
         self.loss_scale = state_dict.get('loss_scale', 1.0)
 

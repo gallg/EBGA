@@ -170,7 +170,8 @@ class BaseModel(BaseEstimator):
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, random_state=None, layer_patience=50,
-                 use_layerwise=False, optimizer=CompactEvoOptimizer, n_candidates=None):
+                 use_layerwise=False, optimizer=CompactEvoOptimizer, n_candidates=None,
+                 momentum=0.5, trust_region_radius=None):
         
         # Store hyperparameters
         self.layers = layers
@@ -191,6 +192,8 @@ class BaseModel(BaseEstimator):
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
         self.n_candidates = n_candidates
+        self.momentum = momentum
+        self.trust_region_radius = trust_region_radius
         
         # Will be initialized in fit()
         self._random_state = None
@@ -226,6 +229,8 @@ class BaseModel(BaseEstimator):
             'calibration_interval': self.calibration_interval,
             'credit_factor': self.credit_factor,
             'sigma_regularization': self.sigma_regularization,
+            'momentum': self.momentum,
+            'trust_region_radius': self.trust_region_radius,
             'max_iter': self.max_iter,
             'early_stopping': self.early_stopping,
             'patience': self.patience,
@@ -272,6 +277,8 @@ class BaseModel(BaseEstimator):
             'calibration_interval': self.calibration_interval,
             'credit_factor': self.credit_factor,
             'sigma_regularization': self.sigma_regularization,
+            'momentum': self.momentum,
+            'trust_region_radius': self.trust_region_radius,
             'random_state': self._random_state
         }
     
@@ -615,7 +622,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  sigma_regularization=0.0, max_iter=10000, early_stopping=True, 
                  patience=100, layer_patience=50, normalize_output=False,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 n_candidates=None):
+                 n_candidates=None, momentum=0.9, trust_region_radius=0.1):
         
         # Store new parameters
         self.n_layers = n_layers
@@ -639,7 +646,8 @@ class EBGARegressor(BaseModel, RegressorMixin):
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
-            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates
+            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates,
+            momentum=momentum, trust_region_radius=trust_region_radius
         )
         
         # Set up loss function
@@ -865,7 +873,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, layer_patience=50,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 n_candidates=None):
+                 n_candidates=None, momentum=0.5, trust_region_radius=None):
         
         # Store new parameters
         self.n_classes = n_classes
@@ -889,7 +897,8 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
-            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates
+            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates,
+            momentum=momentum, trust_region_radius=trust_region_radius
         )
         
         # Set up loss function
