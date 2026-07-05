@@ -9,7 +9,7 @@ from EBGA.losses import (
     Loss, MSE, MAE, CrossEntropy, BinaryCrossEntropy,
     get_loss, mse_loss, mae_loss, cross_entropy_loss, bce_loss
 )
-from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, MultiCandidateOptimizer, OptimizationResult
+from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, OptimizationResult
 from EBGA.utils import save_model, load_model, save_network, load_network
 from EBGA.search import EvoHyperoptSearch
 
@@ -56,7 +56,6 @@ __all__ = [
     # Optimizers
     'BaseEvoOptimizer',
     'CompactEvoOptimizer',
-    'MultiCandidateOptimizer',
     'OptimizationResult',
     
     # Utils

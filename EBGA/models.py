@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelBinarizer
 from EBGA.nn import Sequential
 from EBGA.layers import Linear
 from EBGA.losses import get_loss
-from EBGA.optimizer import CompactEvoOptimizer, MultiCandidateOptimizer
+from EBGA.optimizer import CompactEvoOptimizer
 
 
 # =============================================================================
@@ -36,7 +36,7 @@ def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_a
     return layers
 
 
-def _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates=None):
+def _create_optimizer(optimizer_class, param_dim, optimizer_config):
     """
     Create an optimizer of the specified class.
     
@@ -44,25 +44,14 @@ def _create_optimizer(optimizer_class, param_dim, optimizer_config, n_candidates
         optimizer_class: The optimizer class to instantiate (e.g., CompactEvoOptimizer)
         param_dim: Number of parameters to optimize
         optimizer_config: Dictionary with optimizer configuration parameters
-        n_candidates: Number of candidates (for MultiCandidateOptimizer, ignored for others)
         
     Returns:
         Optimizer instance of the specified class
     """
-    # Handle MultiCandidateOptimizer which needs n_candidates
-    if optimizer_class == MultiCandidateOptimizer:
-        if n_candidates is None:
-            n_candidates = 3  # Default for MultiCandidate
-        return optimizer_class(
-            param_dim=param_dim,
-            n_candidates=n_candidates,
-            **optimizer_config
-        )
-    else:
-        return optimizer_class(
-            param_dim=param_dim,
-            **optimizer_config
-        )
+    return optimizer_class(
+        param_dim=param_dim,
+        **optimizer_config
+    )
 
 
 
@@ -124,7 +113,7 @@ def _run_optimizer_training(optimizer, stateless_loss_func, max_iterations, earl
 
 
 def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_func,
-                               max_iterations, early_stopping, patience, n_candidates=None):
+                               max_iterations, early_stopping, patience):
     """
     Train all layers together using the specified optimizer class.
     
@@ -136,7 +125,6 @@ def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_
         max_iterations: Maximum number of iterations
         early_stopping: Whether to use early stopping
         patience: Patience for early stopping
-        n_candidates: Number of candidates (for MultiCandidateOptimizer)
         
     Returns:
         Optimizer instance with final parameters
@@ -145,7 +133,7 @@ def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_
     
     # Create optimizer of specified class using utility function
     final_optimizer = _create_optimizer(
-        optimizer_class, param_dim, optimizer_config, n_candidates
+        optimizer_class, param_dim, optimizer_config
     )
     
     # Initialize with current parameters
@@ -170,7 +158,7 @@ class BaseModel(BaseEstimator):
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, random_state=None, layer_patience=50,
-                 use_layerwise=False, optimizer=CompactEvoOptimizer, n_candidates=None,
+                 use_layerwise=False, optimizer=CompactEvoOptimizer,
                  momentum=0.5, trust_region_radius=None):
         
         # Store hyperparameters
@@ -191,7 +179,6 @@ class BaseModel(BaseEstimator):
         self.layer_patience = layer_patience
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
-        self.n_candidates = n_candidates
         self.momentum = momentum
         self.trust_region_radius = trust_region_radius
         
@@ -237,8 +224,7 @@ class BaseModel(BaseEstimator):
             'random_state': self.random_state,
             'layer_patience': self.layer_patience,
             'use_layerwise': self.use_layerwise,
-            'optimizer': self.optimizer,
-            'n_candidates': self.n_candidates
+            'optimizer': self.optimizer
         }
         return params
     
@@ -414,8 +400,7 @@ class BaseModel(BaseEstimator):
             partial_optimizer = _create_optimizer(
                 self.optimizer,
                 param_dim=partial_network.parameter_count(),
-                optimizer_config=optimizer_config,
-                n_candidates=self.n_candidates
+                optimizer_config=optimizer_config
             )
             
             # Define loss function for partial network
@@ -459,8 +444,7 @@ class BaseModel(BaseEstimator):
             loss_func=loss_func,
             max_iterations=final_iterations,
             early_stopping=self.early_stopping,
-            patience=self.patience,
-            n_candidates=self.n_candidates
+            patience=self.patience
         )
         
         # Set final parameters
@@ -487,12 +471,10 @@ class BaseModel(BaseEstimator):
         optimizer_config = self._get_optimizer_config()
         
         # Create optimizer of specified class for full network using utility function
-        n_candidates = self.n_candidates if self.n_candidates is not None else 3
         final_optimizer = _create_optimizer(
             self.optimizer,
             param_dim=self.network_.parameter_count(),
-            optimizer_config=optimizer_config,
-            n_candidates=n_candidates
+            optimizer_config=optimizer_config
         )
         
         # Create stateless loss function to prevent state pollution
@@ -562,13 +544,10 @@ class EBGARegressor(BaseModel, RegressorMixin):
         loss: str or Loss, default='mae'
             Loss function name or instance
         optimizer: class, default=CompactEvoOptimizer
-            Optimizer class to use. Can be CompactEvoOptimizer or MultiCandidateOptimizer.
+            Optimizer class to use. Currently only CompactEvoOptimizer is supported.
         use_layerwise: bool, default=False
             If True, use layer-wise training (train each layer in isolation, then all together).
             If False, use direct training (train all layers together from start).
-        n_candidates: int, optional
-            Number of candidates for MultiCandidateOptimizer. Ignored for other optimizers.
-            If None and optimizer is MultiCandidateOptimizer, defaults to 3.
         lr_mu: float, default=0.03
             Learning rate for mean
         lr_sigma: float, default=0.03
@@ -622,7 +601,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  sigma_regularization=0.0, max_iter=10000, early_stopping=True, 
                  patience=100, layer_patience=50, normalize_output=False,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 n_candidates=None, momentum=0.9, trust_region_radius=0.1):
+                 momentum=0.9, trust_region_radius=0.1):
         
         # Store new parameters
         self.n_layers = n_layers
@@ -633,7 +612,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         self.output_activation = output_activation
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
-        self.n_candidates = n_candidates
         
         # Build layers if not provided
         if layers is None:
@@ -646,7 +624,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
-            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates,
+            use_layerwise=use_layerwise, optimizer=optimizer,
             momentum=momentum, trust_region_radius=trust_region_radius
         )
         
@@ -814,13 +792,10 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         loss: str or Loss, default='cross_entropy'
             Loss function name or instance
         optimizer: class, default=CompactEvoOptimizer
-            Optimizer class to use. Can be CompactEvoOptimizer or MultiCandidateOptimizer.
+            Optimizer class to use. Currently only CompactEvoOptimizer is supported.
         use_layerwise: bool, default=False
             If True, use layer-wise training (train each layer in isolation, then all together).
             If False, use direct training (train all layers together from start).
-        n_candidates: int, optional
-            Number of candidates for MultiCandidateOptimizer. Ignored for other optimizers.
-            If None and optimizer is MultiCandidateOptimizer, defaults to 3.
         lr_mu: float, default=0.05
             Learning rate for mean
         lr_sigma: float, default=0.005
@@ -873,7 +848,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, layer_patience=50,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 n_candidates=None, momentum=0.5, trust_region_radius=None):
+                 momentum=0.5, trust_region_radius=None):
         
         # Store new parameters
         self.n_classes = n_classes
@@ -884,7 +859,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         self.output_activation = output_activation
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
-        self.n_candidates = n_candidates
         
         # Build layers if not provided
         if layers is None:
@@ -897,7 +871,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
-            use_layerwise=use_layerwise, optimizer=optimizer, n_candidates=n_candidates,
+            use_layerwise=use_layerwise, optimizer=optimizer,
             momentum=momentum, trust_region_radius=trust_region_radius
         )
         
