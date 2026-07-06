@@ -90,7 +90,7 @@ def run_test(random_state=42):
         
         # Create base model
         model = EBGAClassifier(
-            layers=[(2, 'softmax')],
+            layers=[(1, 'sigmoid')],
             n_classes=n_classes,
             sigma_min=0.001,
             sigma_max=1.0,

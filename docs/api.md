@@ -59,8 +59,8 @@ score = model.score(X, y)  # Returns R²
 - `use_layerwise`: If True, use layer-wise training; if False, train all layers together
 - `sigma_regularization`: Strength of sigma diversity regularization
 - `max_iter`: Maximum training iterations
-- `lr_mu`: Learning rate for mean parameters
-- `lr_sigma`: Learning rate for sigma parameters
+- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)
+- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)
 - `sigma_min`: Minimum sigma value
 - `sigma_max`: Maximum sigma value
 - `calibration_size`: Population size for calibration
@@ -258,8 +258,8 @@ params = optimizer.get_parameters()
 
 **Parameters:**
 - `param_dim`: Dimensionality of parameter space
-- `lr_mu`: Learning rate for mean parameters
-- `lr_sigma`: Learning rate for sigma parameters
+- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)
+- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)
 - `sigma_min`: Minimum sigma value
 - `sigma_max`: Maximum sigma value
 - `calibration_size`: Population size for calibration

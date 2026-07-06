@@ -15,7 +15,7 @@ from EBGA.optimizer import CompactEvoOptimizer
 # UTILITY FUNCTIONS
 # =============================================================================
 
-def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_activation):
+def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_activation, output_size=1):
     """
     Build layer configuration from simple parameters.
     
@@ -24,6 +24,7 @@ def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_a
         h_dim: Size of each hidden layer
         inner_activation: Activation function for hidden layers
         output_activation: Activation function for output layer
+        output_size: Size of output layer (default: 1)
         
     Returns:
         list: List of (size, activation) tuples
@@ -32,7 +33,7 @@ def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_a
     for i in range(n_layers):
         layers.append((h_dim, inner_activation))
     # Output layer
-    layers.append((1, output_activation))
+    layers.append((output_size, output_activation))
     return layers
 
 
@@ -285,16 +286,10 @@ class BaseModel(BaseEstimator):
             # Default: single output layer
             network_layers.append(Linear(output_size, activation=self.output_activation))
         else:
-            # Build layers from specification - use sizes as specified
+            # Build layers from specification - use sizes and activations as specified
             for i, (size, activation) in enumerate(self.layers):
-                if i == len(self.layers) - 1:
-                    # Last layer: use specified size and activation
-                    # If activation is None, use self.output_activation
-                    layer_activation = activation if activation is not None else self.output_activation
-                    network_layers.append(Linear(size, activation=layer_activation))
-                else:
-                    # Hidden layer: use specified size and activation
-                    network_layers.append(Linear(size, activation=activation))
+                layer_activation = activation if activation is not None else self.output_activation
+                network_layers.append(Linear(size, activation=layer_activation))
         
         return Sequential(*network_layers)
     
@@ -339,21 +334,29 @@ class BaseModel(BaseEstimator):
         # Get optimizer configuration
         optimizer_config = self._get_optimizer_config()
         
-        # Determine if this is classification (need one-hot for temporary networks)
-        is_classification = hasattr(self, 'n_classes_') and self.n_classes_ is not None
-        if is_classification:
-            output_size = self.n_classes_
-            output_activation = 'softmax'
+        # Get output size and activation from the actual last layer
+        last_layer = self.network_.layers[-1]
+        output_size = last_layer.output_size
+        output_activation = last_layer.activation
+        
+        # If output_activation is an activation object, get its name
+        if hasattr(output_activation, '__class__'):
+            activation_name = output_activation.__class__.__name__.lower()
         else:
-            output_size = 1
-            output_activation = 'linear'
+            activation_name = str(output_activation).lower() if output_activation else None
+            
+        # Determine activation for temporary networks
+        is_classification = hasattr(self, 'n_classes_') and self.n_classes_ is not None
+        if is_classification and activation_name != 'softmax':
+            # Use softmax for temporary output layer only if main output isn't already softmax
+            temp_output_activation = 'softmax'
+        else:
+            # For regression or when main output already handles classification
+            # Use the same activation as the main network's last layer
+            temp_output_activation = output_activation
         
         # Create base loss function for partial networks
-        if is_classification:
-            # y is already one-hot encoded for classification
-            base_loss_func = lambda y_pred: self.loss_(y_pred, y)
-        else:
-            base_loss_func = lambda y_pred: self.loss_(y_pred, y)
+        base_loss_func = lambda y_pred: self.loss_(y_pred, y)
         
         # Phase 1: Greedy layer-wise pretraining
         for layer_idx in range(n_layers):
@@ -368,7 +371,7 @@ class BaseModel(BaseEstimator):
             
             # Add temporary output layer if not the final layer
             if layer_idx < n_layers - 1:
-                temp_output_layer = Linear(output_size, activation=output_activation)
+                temp_output_layer = Linear(output_size, activation=temp_output_activation)
                 partial_layers.append(temp_output_layer)
             
             # Create partial network
@@ -549,9 +552,9 @@ class EBGARegressor(BaseModel, RegressorMixin):
             If True, use layer-wise training (train each layer in isolation, then all together).
             If False, use direct training (train all layers together from start).
         lr_mu: float, default=0.03
-            Learning rate for mean
+            Initial learning rate for mean (adaptive during training)
         lr_sigma: float, default=0.03
-            Learning rate for sigma
+            Initial learning rate for sigma (adaptive during training)
         sigma_min: float, default=0.001
             Minimum sigma
         sigma_max: float, default=1.0
@@ -638,7 +641,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
     def _build_layers_from_params(self):
         """Build layer configuration from n_layers, h_dim, and activations."""
         return _build_layers_from_params_simple(
-            self.n_layers, self.h_dim, self.inner_activation, self.output_activation
+            self.n_layers, self.h_dim, self.inner_activation, self.output_activation, output_size=1
         )
     
     def get_params(self, deep=True):
@@ -717,8 +720,16 @@ class EBGARegressor(BaseModel, RegressorMixin):
             self.y_min_ = None
             self.y_max_ = None
         
+        # Check if user provided layers - if so, use the last layer's output size
+        # If not, use 1 as output size for regression
+        if self.layers is None or len(self.layers) == 0:
+            output_size = 1
+        else:
+            # Use the size specified in the last layer
+            output_size = self.layers[-1][0]
+        
         # Build network
-        self.network_ = self._build_network(self.n_features_, output_size=1)
+        self.network_ = self._build_network(self.n_features_, output_size=output_size)
         
         # Choose training strategy
         if self.use_layerwise:
@@ -797,9 +808,9 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             If True, use layer-wise training (train each layer in isolation, then all together).
             If False, use direct training (train all layers together from start).
         lr_mu: float, default=0.05
-            Learning rate for mean
+            Initial learning rate for mean (adaptive during training)
         lr_sigma: float, default=0.005
-            Learning rate for sigma
+            Initial learning rate for sigma (adaptive during training)
         sigma_min: float, default=0.001
             Minimum sigma
         sigma_max: float, default=1.0
@@ -862,7 +873,9 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         
         # Build layers if not provided
         if layers is None:
-            layers = self._build_layers_from_params()
+            # For classifier, use n_classes as output size if available
+            output_size = n_classes if n_classes is not None else 1
+            layers = self._build_layers_from_params(output_size=output_size)
         
         super().__init__(
             layers=layers, output_activation=output_activation,
@@ -882,10 +895,10 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         else:
             self.loss_ = loss
     
-    def _build_layers_from_params(self):
+    def _build_layers_from_params(self, output_size=1):
         """Build layer configuration from n_layers, h_dim, and activations."""
         return _build_layers_from_params_simple(
-            self.n_layers, self.h_dim, self.inner_activation, self.output_activation
+            self.n_layers, self.h_dim, self.inner_activation, self.output_activation, output_size=output_size
         )
     
     def get_params(self, deep=True):
@@ -941,7 +954,8 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
     
     def _create_classification_loss_func(self, X, y_onehot):
         """
-        Create classification-specific loss function with softmax activation.
+        Create classification-specific loss function.
+        Uses network output as-is, relying on the network's activation.
         
         Args:
             X: Input data
@@ -953,10 +967,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         def loss_func(params):
             self.network_.set_all_parameters(params)
             y_pred = self.network_.forward(X)
-            # Apply softmax if needed
-            if self.output_activation == 'softmax':
-                y_pred = np.exp(y_pred - np.max(y_pred, axis=1, keepdims=True))
-                y_pred = y_pred / np.sum(y_pred, axis=1, keepdims=True)
             loss = self.loss_(y_pred, y_onehot)
             # Add parameter clipping penalty for numerical stability
             if np.any(np.abs(params) > 1e5):
@@ -989,8 +999,16 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         self.label_binarizer_ = LabelBinarizer()
         y_onehot = self.label_binarizer_.fit_transform(y)
         
+        # Check if user provided layers - if so, use the last layer's output size
+        # If not, use n_classes_ as output size
+        if self.layers is None or len(self.layers) == 0:
+            output_size = self.n_classes_
+        else:
+            # Use the size specified in the last layer
+            output_size = self.layers[-1][0]
+        
         # Build network
-        self.network_ = self._build_network(self.n_features_, output_size=self.n_classes_)
+        self.network_ = self._build_network(self.n_features_, output_size=output_size)
         
         # Choose training strategy
         if self.use_layerwise:
@@ -1008,6 +1026,12 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         """
         Predict class labels for input data.
         
+        Handles different output activations:
+        - softmax: returns argmax of network output
+        - sigmoid with 2 classes: applies 0.5 threshold
+        - sigmoid with >2 classes: warns and falls back to softmax + argmax
+        - other: returns argmax
+        
         Args:
             X: Input features
             
@@ -1017,26 +1041,83 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         check_is_fitted(self)
         X = check_array(X)
         output = self.network_.forward(X)
-        # Return class with highest score
-        return np.argmax(output, axis=1)
+        
+        # Get the actual activation of the last layer
+        last_layer = self.network_.layers[-1]
+        activation = last_layer.activation
+        
+        # Get activation name
+        if hasattr(activation, '__class__'):
+            activation_name = activation.__class__.__name__.lower()
+        else:
+            activation_name = str(activation).lower() if activation else 'none'
+        
+        if activation_name == 'sigmoid':
+            # For sigmoid activation
+            if output.shape[1] == 1:
+                # Single output neuron with sigmoid: binary classification using 0.5 threshold
+                return (output >= 0.5).astype(int).flatten()
+            elif self.n_classes_ == 2 and output.shape[1] == 2:
+                # Two output neurons with sigmoid for binary classification
+                # This is non-standard but we'll handle it by using the first neuron
+                import warnings
+                warnings.warn(
+                    f"Sigmoid activation with 2 output neurons for {self.n_classes_}-class classification is non-standard. "
+                    f"Consider using (1, 'sigmoid') for binary or ({self.n_classes_}, 'softmax') for multi-class. "
+                    f"Using first neuron with 0.5 threshold.",
+                    UserWarning
+                )
+                return (output[:, 0] >= 0.5).astype(int).flatten()
+            else:
+                # Multi-class with sigmoid: warn and fall back to argmax
+                import warnings
+                warnings.warn(
+                    f"Sigmoid activation with {self.n_classes_} classes and {output.shape[1]} outputs is not standard. "
+                    f"Consider using ({self.n_classes_}, 'softmax'). Falling back to argmax.",
+                    UserWarning
+                )
+                return np.argmax(output, axis=1)
+        else:
+            # For softmax, linear, or other activations: use argmax
+            return np.argmax(output, axis=1)
     
     def predict_proba(self, X):
         """
         Predict class probabilities for input data.
         
+        Handles different output activations:
+        - softmax: returns network output as-is (already probabilities)
+        - sigmoid: applies softmax to convert to probabilities
+        - linear: applies softmax to convert to probabilities
+        - other: applies softmax to convert to probabilities
+        
         Args:
             X: Input features
             
         Returns:
-            numpy.ndarray: Class probabilities (softmax output)
+            numpy.ndarray: Class probabilities
         """
         check_is_fitted(self)
         X = check_array(X)
         output = self.network_.forward(X)
-        # Apply softmax
-        output = np.exp(output - np.max(output, axis=1, keepdims=True))
-        output = output / np.sum(output, axis=1, keepdims=True)
-        return output
+        
+        # Get the actual activation of the last layer
+        last_layer = self.network_.layers[-1]
+        activation = last_layer.activation
+        
+        # Get activation name
+        if hasattr(activation, '__class__'):
+            activation_name = activation.__class__.__name__.lower()
+        else:
+            activation_name = str(activation).lower() if activation else 'none'
+        
+        if activation_name == 'softmax':
+            # Network already outputs probabilities
+            return output
+        else:
+            # Apply softmax to get probabilities
+            output_exp = np.exp(output - np.max(output, axis=1, keepdims=True))
+            return output_exp / np.sum(output_exp, axis=1, keepdims=True)
     
     def score(self, X, y):
         """

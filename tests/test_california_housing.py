@@ -89,7 +89,7 @@ def run_test(random_state=42):
         
         # Create base model
         model = EBGARegressor(
-            layers=[(8, 'relu'), (1, 'linear')],
+            layers=[(3, 'sigmoid'), (1, 'linear')],
             normalize_output=True,
             loss='mse',
             sigma_min=0.001,

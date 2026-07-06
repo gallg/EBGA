@@ -163,9 +163,9 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         param_dim: int
             Dimensionality of the parameter space
         lr_mu: float, default=0.05
-            Learning rate for mean parameters
+            Initial learning rate for mean parameters (adaptive during training)
         lr_sigma: float, default=0.005
-            Learning rate for standard deviation parameters
+            Initial learning rate for standard deviation parameters (adaptive during training)
         sigma_min: float, default=0.001
             Minimum standard deviation
         sigma_max: float, default=1.0
