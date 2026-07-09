@@ -37,7 +37,6 @@ def main():
     print("EBGA FRAMEWORK - TEST SUITE")
     print("Evolutionary-Based Gradient-free Architecture")
     print("=" * 70)
-    print("\nAll models use EXPLICIT LAYER SPECIFICATION")
     print("Layer-wise training is enabled by default")
     print("\nComparison: EBGA vs sklearn Ridge/RidgeClassifier\n")
     
@@ -49,24 +48,24 @@ def main():
     print("=" * 70)
     
     # Iris
-    iris_model, iris_acc, _ = run_iris_test()
-    results['Iris'] = {'accuracy': iris_acc, 'model': iris_model}
+    iris_acc, iris_baseline = run_iris_test()
+    results['Iris'] = {'accuracy': iris_acc, 'baseline': iris_baseline}
     
     # Breast Cancer
-    cancer_model, cancer_acc, _ = run_breast_cancer_test()
-    results['Breast Cancer'] = {'accuracy': cancer_acc, 'model': cancer_model}
+    cancer_acc, cancer_baseline = run_breast_cancer_test()
+    results['Breast Cancer'] = {'accuracy': cancer_acc, 'baseline': cancer_baseline}
     
     # Wine
-    wine_model, wine_acc, _ = run_wine_test()
-    results['Wine'] = {'accuracy': wine_acc, 'model': wine_model}
+    wine_acc, wine_baseline = run_wine_test()
+    results['Wine'] = {'accuracy': wine_acc, 'baseline': wine_baseline}
     
     # Diabetes (Regression)
-    diabetes_model, diabetes_r2, _ = run_diabetes_test()
-    results['Diabetes'] = {'r2': diabetes_r2, 'model': diabetes_model}
+    diabetes_r2, diabetes_baseline = run_diabetes_test()
+    results['Diabetes'] = {'r2': diabetes_r2, 'baseline': diabetes_baseline}
     
     # California Housing (Regression)
-    housing_model, housing_r2, _ = run_california_housing_test()
-    results['California Housing'] = {'r2': housing_r2, 'model': housing_model}
+    housing_r2, housing_baseline = run_california_housing_test()
+    results['California Housing'] = {'r2': housing_r2, 'baseline': housing_baseline}
     
     # Summary
     print("\n" + "=" * 70)
@@ -77,13 +76,15 @@ def main():
     for dataset in ['Iris', 'Breast Cancer', 'Wine']:
         if dataset in results:
             acc = results[dataset]['accuracy']
-            print(f"  {dataset:20s}: Accuracy = {acc:.4f}")
+            baseline = results[dataset]['baseline']
+            print(f"  {dataset:20s}: EBGA Accuracy = {acc:.4f}, sklearn Baseline = {baseline:.4f}")
     
     print("\nRegression Datasets:")
     for dataset in ['Diabetes', 'California Housing']:
         if dataset in results:
             r2 = results[dataset]['r2']
-            print(f"  {dataset:20s}: R² = {r2:.4f}")
+            baseline = results[dataset]['baseline']
+            print(f"  {dataset:20s}: EBGA R² = {r2:.4f}, sklearn Baseline = {baseline:.4f}")
     
     print("\n" + "=" * 70)
     print("All tests completed!")

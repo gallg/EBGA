@@ -11,7 +11,7 @@ Scikit-learn compatible regressor for neural network training with natural gradi
 - `set_params(**params)`: Set model parameters
 
 **Notes:**
-- Supports both explicit layer specification via `layers` parameter and simple configuration via `n_layers`, `h_dim`, and `inner_activation`
+- Uses explicit layer specification via `layers` parameter
 - Can use layer-wise training (`use_layerwise=True`) or direct training (`use_layerwise=False`)
 - Supports normalization of output via `normalize_output=True`
 
@@ -19,11 +19,7 @@ Scikit-learn compatible regressor for neural network training with natural gradi
 from EBGA.models import EBGARegressor
 
 model = EBGARegressor(
-    layers=None,
-    n_layers=1,
-    h_dim=50,
-    inner_activation='relu',
-    output_activation='linear',
+    layers=[(50, 'relu'), (1, 'linear')],
     loss='mae',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,
@@ -49,11 +45,7 @@ score = model.score(X, y)  # Returns R²
 ```
 
 **Parameters:**
-- `layers`: List of (size, activation) tuples for explicit layer specification
-- `n_layers`: Number of hidden layers (used if layers=None)
-- `h_dim`: Size of hidden layers (used if layers=None)
-- `inner_activation`: Activation function for hidden layers
-- `output_activation`: Activation function for output layer
+- `layers`: List of (size, activation) tuples for explicit layer specification. Each tuple defines (output_size, activation). Example: `[(50, 'relu'), (1, 'linear')]` for 1 hidden layer with 50 units and ReLU activation, plus output layer with linear activation
 - `loss`: Loss function ('mse' or 'mae')
 - `optimizer`: Optimizer class (currently only CompactEvoOptimizer is supported)
 - `use_layerwise`: If True, use layer-wise training; if False, train all layers together
@@ -82,12 +74,8 @@ Scikit-learn compatible classifier for neural network training with natural grad
 from EBGA.models import EBGAClassifier
 
 model = EBGAClassifier(
-    layers=None,
-    n_classes=None,
-    n_layers=1,
-    h_dim=50,
-    inner_activation='relu',
-    output_activation='softmax',
+    layers=[(50, 'relu'), (10, 'softmax')],
+    n_classes=10,
     loss='cross_entropy',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,

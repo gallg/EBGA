@@ -15,28 +15,6 @@ from EBGA.optimizer import CompactEvoOptimizer
 # UTILITY FUNCTIONS
 # =============================================================================
 
-def _build_layers_from_params_simple(n_layers, h_dim, inner_activation, output_activation, output_size=1):
-    """
-    Build layer configuration from simple parameters.
-    
-    Args:
-        n_layers: Number of hidden layers
-        h_dim: Size of each hidden layer
-        inner_activation: Activation function for hidden layers
-        output_activation: Activation function for output layer
-        output_size: Size of output layer (default: 1)
-        
-    Returns:
-        list: List of (size, activation) tuples
-    """
-    layers = []
-    for i in range(n_layers):
-        layers.append((h_dim, inner_activation))
-    # Output layer
-    layers.append((output_size, output_activation))
-    return layers
-
-
 def _create_optimizer(optimizer_class, param_dim, optimizer_config):
     """
     Create an optimizer of the specified class.
@@ -154,7 +132,7 @@ def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_
 
 class BaseModel(BaseEstimator):
     
-    def __init__(self, layers=None, output_activation='linear',
+    def __init__(self, layers=None,
                  lr_mu=0.05, lr_sigma=0.005, sigma_min=0.001, sigma_max=1.0,
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
@@ -164,7 +142,6 @@ class BaseModel(BaseEstimator):
         
         # Store hyperparameters
         self.layers = layers
-        self.output_activation = output_activation
         self.lr_mu = lr_mu
         self.lr_sigma = lr_sigma
         self.sigma_min = sigma_min
@@ -208,7 +185,6 @@ class BaseModel(BaseEstimator):
         """
         params = {
             'layers': self.layers,
-            'output_activation': self.output_activation,
             'lr_mu': self.lr_mu,
             'lr_sigma': self.lr_sigma,
             'sigma_min': self.sigma_min,
@@ -283,12 +259,12 @@ class BaseModel(BaseEstimator):
         network_layers = []
         
         if self.layers is None or len(self.layers) == 0:
-            # Default: single output layer
-            network_layers.append(Linear(output_size, activation=self.output_activation))
+            # Default: single output layer with linear activation
+            network_layers.append(Linear(output_size, activation='linear'))
         else:
             # Build layers from specification - use sizes and activations as specified
             for i, (size, activation) in enumerate(self.layers):
-                layer_activation = activation if activation is not None else self.output_activation
+                layer_activation = activation if activation is not None else 'linear'
                 network_layers.append(Linear(size, activation=layer_activation))
         
         return Sequential(*network_layers)
@@ -525,25 +501,12 @@ class EBGARegressor(BaseModel, RegressorMixin):
     """
     EBGA Regressor - Evolutionary neural network for regression.
     
-    Can be configured either via explicit layers list or via simple parameters:
-    - Use `layers` for full control over architecture
-    - Use `n_layers` + `h_dim` for simple multi-layer networks
+    Uses explicit layers list for network architecture configuration.
 
     Parameters:
         layers: list of tuples, default=None
             Network architecture. Each tuple is (output_size, activation)
-            If None, uses n_layers and h_dim to build network.
-        n_layers: int, default=1
-            Number of hidden layers (excluding output layer).
-            Only used if layers=None.
-        h_dim: int, default=50
-            Size of each hidden layer.
-            Only used if layers=None.
-        inner_activation: str, default='relu'
-            Activation for hidden layers.
-            Only used if layers=None.
-        output_activation: str, default='linear'
-            Activation for output layer
+            Example: [(50, 'relu'), (1, 'linear')] for 1 hidden layer with 50 units and ReLU, output with linear activation
         loss: str or Loss, default='mae'
             Loss function name or instance
         optimizer: class, default=CompactEvoOptimizer
@@ -580,15 +543,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         
     Example:
         >>> from EBGA.models import EBGARegressor
-        >>> # Using simple parameters
-        >>> model = EBGARegressor(
-        ...     n_layers=2,
-        ...     h_dim=50,
-        ...     inner_activation='relu',
-        ...     output_activation='linear',
-        ...     max_iter=1000
-        ... )
-        >>> # Or using explicit layers
         >>> model = EBGARegressor(
         ...     layers=[(50, 'relu'), (1, 'linear')],
         ...     max_iter=1000
@@ -597,8 +551,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
         >>> predictions = model.predict(X_test)
     """
     
-    def __init__(self, layers=None, n_layers=1, h_dim=50, inner_activation='relu',
-                 output_activation='linear', loss='mae',
+    def __init__(self, layers=None, loss='mae',
                  lr_mu=0.03, lr_sigma=0.03, sigma_min=0.001, sigma_max=1.0,
                  calibration_size=30, calibration_interval=50, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=10000, early_stopping=True, 
@@ -607,21 +560,13 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  momentum=0.9, trust_region_radius=0.1):
         
         # Store new parameters
-        self.n_layers = n_layers
-        self.h_dim = h_dim
-        self.inner_activation = inner_activation
         self.layer_patience = layer_patience
         self.normalize_output = normalize_output
-        self.output_activation = output_activation
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
         
-        # Build layers if not provided
-        if layers is None:
-            layers = self._build_layers_from_params()
-        
         super().__init__(
-            layers=layers, output_activation=output_activation,
+            layers=layers,
             lr_mu=lr_mu, lr_sigma=lr_sigma, sigma_min=sigma_min, sigma_max=sigma_max,
             calibration_size=calibration_size, calibration_interval=calibration_interval,
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
@@ -637,12 +582,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
             self.loss_ = get_loss(loss)
         else:
             self.loss_ = loss
-    
-    def _build_layers_from_params(self):
-        """Build layer configuration from n_layers, h_dim, and activations."""
-        return _build_layers_from_params_simple(
-            self.n_layers, self.h_dim, self.inner_activation, self.output_activation, output_size=1
-        )
     
     def get_params(self, deep=True):
         """
@@ -661,9 +600,6 @@ class EBGARegressor(BaseModel, RegressorMixin):
         """
         params = super().get_params(deep)
         params.update({
-            'n_layers': self.n_layers,
-            'h_dim': self.h_dim,
-            'inner_activation': self.inner_activation,
             'loss': self._loss_str if hasattr(self, '_loss_str') and self._loss_str is not None else 'mse',
             'normalize_output': self.normalize_output
         })
@@ -779,27 +715,14 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
     """
     EBGA Classifier - Evolutionary neural network for classification.
     
-    Can be configured either via explicit layers list or via simple parameters:
-    - Use `layers` for full control over architecture
-    - Use `n_layers` + `h_dim` for simple multi-layer networks
+    Uses explicit layers list for network architecture configuration.
 
     Parameters:
         layers: list of tuples, default=None
             Network architecture. Each tuple is (output_size, activation)
-            If None, uses n_layers and h_dim to build network.
+            Example: [(50, 'relu'), (10, 'softmax')] for 1 hidden layer with 50 units and ReLU, output with softmax activation
         n_classes: int, optional
             Number of classes. If None, inferred from data.
-        n_layers: int, default=1
-            Number of hidden layers (excluding output layer).
-            Only used if layers=None.
-        h_dim: int, default=50
-            Size of each hidden layer.
-            Only used if layers=None.
-        inner_activation: str, default='relu'
-            Activation for hidden layers.
-            Only used if layers=None.
-        output_activation: str, default='softmax'
-            Activation for output layer
         loss: str or Loss, default='cross_entropy'
             Loss function name or instance
         optimizer: class, default=CompactEvoOptimizer
@@ -834,26 +757,15 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         
     Example:
         >>> from EBGA.models import EBGAClassifier
-        >>> # Using simple parameters
         >>> model = EBGAClassifier(
-        ...     n_layers=2,
-        ...     h_dim=50,
-        ...     inner_activation='relu',
-        ...     n_classes=10,
-        ...     output_activation='softmax'
-        ... )
-        >>> # Or using explicit layers
-        >>> model = EBGAClassifier(
-        ...     layers=[(50, 'relu'), (10, 'relu')],
-        ...     n_classes=10,
-        ...     output_activation='softmax'
+        ...     layers=[(50, 'relu'), (10, 'softmax')],
+        ...     n_classes=10
         ... )
         >>> model.fit(X_train, y_train)
         >>> predictions = model.predict(X_test)
     """
     
-    def __init__(self, layers=None, n_classes=None, n_layers=1, h_dim=50, inner_activation='relu',
-                 output_activation='softmax', loss='cross_entropy',
+    def __init__(self, layers=None, n_classes=None, loss='cross_entropy',
                  lr_mu=0.05, lr_sigma=0.005, sigma_min=0.001, sigma_max=1.0,
                  calibration_size=20, calibration_interval=25, credit_factor=2.0,
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
@@ -863,22 +775,12 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         
         # Store new parameters
         self.n_classes = n_classes
-        self.n_layers = n_layers
-        self.h_dim = h_dim
-        self.inner_activation = inner_activation
         self.layer_patience = layer_patience
-        self.output_activation = output_activation
         self.use_layerwise = use_layerwise
         self.optimizer = optimizer
         
-        # Build layers if not provided
-        if layers is None:
-            # For classifier, use n_classes as output size if available
-            output_size = n_classes if n_classes is not None else 1
-            layers = self._build_layers_from_params(output_size=output_size)
-        
         super().__init__(
-            layers=layers, output_activation=output_activation,
+            layers=layers,
             lr_mu=lr_mu, lr_sigma=lr_sigma, sigma_min=sigma_min, sigma_max=sigma_max,
             calibration_size=calibration_size, calibration_interval=calibration_interval,
             credit_factor=credit_factor, sigma_regularization=sigma_regularization,
@@ -894,12 +796,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             self.loss_ = get_loss(loss)
         else:
             self.loss_ = loss
-    
-    def _build_layers_from_params(self, output_size=1):
-        """Build layer configuration from n_layers, h_dim, and activations."""
-        return _build_layers_from_params_simple(
-            self.n_layers, self.h_dim, self.inner_activation, self.output_activation, output_size=output_size
-        )
     
     def get_params(self, deep=True):
         """
@@ -919,9 +815,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         params = super().get_params(deep)
         params.update({
             'n_classes': self.n_classes,
-            'n_layers': self.n_layers,
-            'h_dim': self.h_dim,
-            'inner_activation': self.inner_activation,
             'loss': self._loss_str if hasattr(self, '_loss_str') and self._loss_str is not None else 'cross_entropy'
         })
         return params

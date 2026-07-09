@@ -12,7 +12,7 @@ from EBGA.losses import (
 from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, OptimizationResult
 from EBGA.utils import save_model, load_model, save_network, load_network
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     # Models

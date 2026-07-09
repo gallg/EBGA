@@ -34,7 +34,6 @@ def save_model(model, filepath):
         'optimizer_state': optimizer_state,
         'n_features': int(model.n_features_),
         'layers': [(size, act_to_str(act)) for size, act in model.layers] if model.layers else None,
-        'output_activation': act_to_str(model.output_activation) if model.output_activation else None,
         'lr_mu': float(model.lr_mu),
         'lr_sigma': float(model.lr_sigma),
         'sigma_min': float(model.sigma_min),
@@ -98,14 +97,15 @@ def load_model(filepath):
     if not layers_config:
         layers_config = []
     
-    output_activation = _to_python_scalar(state['output_activation'])
+    # Get output_activation if available (for backward compatibility)
+    output_activation = _to_python_scalar(state.get('output_activation', 'linear'))
     
     # Build network
     network_layers = []
     n_layers = len(layers_config)
     
     for i, (size, activation) in enumerate(layers_config):
-        act = output_activation if i == n_layers - 1 else activation
+        act = output_activation if (i == n_layers - 1 and activation is None) else activation
         if act is not None and not isinstance(act, str):
             act = str(act)
         network_layers.append(Linear(size, activation=act if act else None))
@@ -140,7 +140,6 @@ def load_model(filepath):
         model = EBGAClassifier.__new__(EBGAClassifier)
     
     model.layers = layers_config
-    model.output_activation = output_activation
     model.lr_mu = float(_to_python_scalar(state['lr_mu']))
     model.lr_sigma = float(_to_python_scalar(state['lr_sigma']))
     model.sigma_min = float(_to_python_scalar(state['sigma_min']))
