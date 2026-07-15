@@ -68,7 +68,7 @@ y_pred = model.predict(X_test)
 print(f"R² Score: {model.score(X_test, y_test):.4f}")
 ```
 
-* For more implementation-related **examples** and the **API reference** please read the [documentation](/docs/index.md)
+* For more implementation-related **examples** and the **API reference** please read the [documentation](/Nevdyf/EBGA/src/branch/main/docs/index.md)
 
 ## License
 
