@@ -138,7 +138,7 @@ class BaseModel(BaseEstimator):
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, random_state=None, layer_patience=50,
                  use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 momentum=0.5, trust_region_radius=None):
+                 momentum=0.5, trust_region_radius=None, batch_size=None):
         
         # Store hyperparameters
         self.layers = layers
@@ -159,6 +159,7 @@ class BaseModel(BaseEstimator):
         self.optimizer = optimizer
         self.momentum = momentum
         self.trust_region_radius = trust_region_radius
+        self.batch_size = batch_size
         
         # Will be initialized in fit()
         self._random_state = None
@@ -201,7 +202,8 @@ class BaseModel(BaseEstimator):
             'random_state': self.random_state,
             'layer_patience': self.layer_patience,
             'use_layerwise': self.use_layerwise,
-            'optimizer': self.optimizer
+            'optimizer': self.optimizer,
+            'batch_size': self.batch_size
         }
         return params
     
@@ -244,6 +246,53 @@ class BaseModel(BaseEstimator):
             'trust_region_radius': self.trust_region_radius,
             'random_state': self._random_state
         }
+    
+    def _create_batches(self, X, y):
+        """
+        Create batches from the dataset.
+        
+        If batch_size is None, returns the full dataset as a single batch.
+        Otherwise, splits into batches of the specified size.
+        If the last batch would be too small (< batch_size), merges it with the previous batch.
+        
+        Args:
+            X: Input features
+            y: Target values
+            
+        Returns:
+            list: List of (X_batch, y_batch) tuples
+        """
+        if self.batch_size is None:
+            return [(X, y)]
+        
+        n_samples = X.shape[0]
+        batch_size = self.batch_size
+        
+        # Calculate number of batches
+        n_full_batches = n_samples // batch_size
+        remainder = n_samples % batch_size
+        
+        # If remainder is too small, merge with last batch
+        if remainder > 0 and remainder < batch_size:
+            # Merge remainder with the last full batch
+            batches = []
+            for i in range(n_full_batches):
+                start = i * batch_size
+                # Last batch gets extra samples
+                if i == n_full_batches - 1:
+                    end = start + batch_size + remainder
+                else:
+                    end = start + batch_size
+                batches.append((X[start:end], y[start:end]))
+            return batches
+        else:
+            # No remainder or exact multiple
+            batches = []
+            for i in range(n_full_batches):
+                start = i * batch_size
+                end = start + batch_size
+                batches.append((X[start:end], y[start:end]))
+            return batches
     
     def _build_network(self, input_size, output_size):
         """
@@ -299,7 +348,10 @@ class BaseModel(BaseEstimator):
             loss_func: Optional custom loss function. If None, uses _create_loss_func
         """
         if loss_func is None:
-            loss_func = self._create_loss_func(X, y)
+            if self.batch_size is not None:
+                loss_func = self._create_batched_loss_func(X, y)
+            else:
+                loss_func = self._create_loss_func(X, y)
         
         n_layers = len(self.network_.layers)
         
@@ -330,9 +382,6 @@ class BaseModel(BaseEstimator):
             # For regression or when main output already handles classification
             # Use the same activation as the main network's last layer
             temp_output_activation = output_activation
-        
-        # Create base loss function for partial networks
-        base_loss_func = lambda y_pred: self.loss_(y_pred, y)
         
         # Phase 1: Greedy layer-wise pretraining
         for layer_idx in range(n_layers):
@@ -383,16 +432,38 @@ class BaseModel(BaseEstimator):
             )
             
             # Define loss function for partial network
-            def partial_loss(params):
-                partial_network.set_all_parameters(params)
-                y_pred = partial_network.forward(X)
-                if partial_network.output_size == 1:
-                    y_pred = y_pred.flatten()
-                loss = base_loss_func(y_pred)
-                # Add parameter clipping penalty for numerical stability
-                if np.any(np.abs(params) > 1e5):
-                    return float('inf')
-                return loss
+            if self.batch_size is not None:
+                # With batching: create batches and cycle through them
+                batches = self._create_batches(X, y)
+                batch_index = [0]
+                
+                def partial_loss(params):
+                    # Get current batch
+                    idx = batch_index[0] % len(batches)
+                    X_batch, y_batch = batches[idx]
+                    batch_index[0] += 1
+                    
+                    partial_network.set_all_parameters(params)
+                    y_pred = partial_network.forward(X_batch)
+                    if partial_network.output_size == 1:
+                        y_pred = y_pred.flatten()
+                    loss = self.loss_(y_pred, y_batch)
+                    # Add parameter clipping penalty for numerical stability
+                    if np.any(np.abs(params) > 1e5):
+                        return float('inf')
+                    return loss
+            else:
+                # Without batching: use full dataset
+                def partial_loss(params):
+                    partial_network.set_all_parameters(params)
+                    y_pred = partial_network.forward(X)
+                    if partial_network.output_size == 1:
+                        y_pred = y_pred.flatten()
+                    loss = self.loss_(y_pred, y)
+                    # Add parameter clipping penalty for numerical stability
+                    if np.any(np.abs(params) > 1e5):
+                        return float('inf')
+                    return loss
             
             # Train partial network
             partial_optimizer.initialize()
@@ -440,7 +511,10 @@ class BaseModel(BaseEstimator):
             loss_func: Optional custom loss function. If None, uses _create_loss_func
         """
         if loss_func is None:
-            loss_func = self._create_loss_func(X, y)
+            if self.batch_size is not None:
+                loss_func = self._create_batched_loss_func(X, y)
+            else:
+                loss_func = self._create_loss_func(X, y)
         
         # Initialize network
         self.network_.initialize(self.n_features_)
@@ -495,6 +569,64 @@ class BaseModel(BaseEstimator):
                 return float('inf')
             return loss
         return loss_func
+    
+    def _wrap_with_batching(self, loss_func, X, y):
+        """
+        Wrap a loss function with batching support.
+        
+        Creates a new loss function that cycles through batches of the data.
+        Each call to the returned function uses the next batch in sequence.
+        
+        Args:
+            loss_func: Base loss function that takes (params, X_batch, y_batch)
+            X: Full input data
+            y: Full target data
+            
+        Returns:
+            function: Batched loss function that takes parameters and returns loss value
+        """
+        # Create batches
+        batches = self._create_batches(X, y)
+        batch_index = [0]  # Use list to allow mutation in nested function
+        
+        def batched_loss_func(params):
+            # Get current batch
+            idx = batch_index[0] % len(batches)
+            X_batch, y_batch = batches[idx]
+            batch_index[0] += 1
+            
+            # Call the base loss function with batch data
+            return loss_func(params, X_batch, y_batch)
+        
+        return batched_loss_func
+    
+    def _create_batched_loss_func(self, X, y):
+        """
+        Create a batched loss function that cycles through batches.
+        
+        Each call to the returned loss function uses a different batch for evaluation.
+        The batches are cycled through in a round-robin fashion.
+        
+        Args:
+            X: Input data
+            y: Target data
+            
+        Returns:
+            function: Batched loss function that takes parameters and returns loss value
+        """
+        # Base loss function for the main network
+        def base_loss(params, X_batch, y_batch):
+            self.network_.set_all_parameters(params)
+            y_pred = self.network_.forward(X_batch)
+            if self.network_.output_size == 1:
+                y_pred = y_pred.flatten()
+            loss = self.loss_(y_pred, y_batch)
+            # Add parameter clipping penalty for numerical stability
+            if np.any(np.abs(params) > 1e5):
+                return float('inf')
+            return loss
+        
+        return self._wrap_with_batching(base_loss, X, y)
 
 
 class EBGARegressor(BaseModel, RegressorMixin):
@@ -557,7 +689,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  sigma_regularization=0.0, max_iter=10000, early_stopping=True, 
                  patience=100, layer_patience=50, normalize_output=False,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 momentum=0.9, trust_region_radius=0.1):
+                 momentum=0.9, trust_region_radius=0.1, batch_size=None):
         
         # Store new parameters
         self.layer_patience = layer_patience
@@ -573,7 +705,8 @@ class EBGARegressor(BaseModel, RegressorMixin):
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
             use_layerwise=use_layerwise, optimizer=optimizer,
-            momentum=momentum, trust_region_radius=trust_region_radius
+            momentum=momentum, trust_region_radius=trust_region_radius,
+            batch_size=batch_size
         )
         
         # Set up loss function
@@ -771,7 +904,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                  sigma_regularization=0.0, max_iter=500, early_stopping=True, 
                  patience=20, layer_patience=50,
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 momentum=0.5, trust_region_radius=None):
+                 momentum=0.5, trust_region_radius=None, batch_size=None):
         
         # Store new parameters
         self.n_classes = n_classes
@@ -787,7 +920,8 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             max_iter=max_iter, early_stopping=early_stopping, patience=patience, 
             random_state=random_state, layer_patience=layer_patience,
             use_layerwise=use_layerwise, optimizer=optimizer,
-            momentum=momentum, trust_region_radius=trust_region_radius
+            momentum=momentum, trust_region_radius=trust_region_radius,
+            batch_size=batch_size
         )
         
         # Set up loss function
@@ -857,15 +991,24 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         Returns:
             function: Loss function for classification
         """
-        def loss_func(params):
+        # Base loss function for classification
+        def class_base_loss(params, X_batch, y_batch):
             self.network_.set_all_parameters(params)
-            y_pred = self.network_.forward(X)
-            loss = self.loss_(y_pred, y_onehot)
+            y_pred = self.network_.forward(X_batch)
+            loss = self.loss_(y_pred, y_batch)
             # Add parameter clipping penalty for numerical stability
             if np.any(np.abs(params) > 1e5):
                 return float('inf')
             return loss
-        return loss_func
+        
+        # Use batching if batch_size is set
+        if self.batch_size is not None:
+            return self._wrap_with_batching(class_base_loss, X, y_onehot)
+        else:
+            # Without batching, use full dataset
+            def loss_func(params):
+                return class_base_loss(params, X, y_onehot)
+            return loss_func
     
     def fit(self, X, y):
         """
