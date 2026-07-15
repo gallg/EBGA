@@ -14,6 +14,8 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 - **Distribution-based optimization** - Parameters optimized through Gaussian distributions
 - **Handles non-differentiable losses** - Works with any loss function
 - **Flexible training modes** - Layer-wise or direct training
+- **Mini-batch training** - Train on large datasets with configurable batch sizes
+- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, Swish
 
 
 ### Available Models
@@ -24,8 +26,6 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 ### Available Optimizers
 
 - **CompactEvoOptimizer** - Single Gaussian distribution with diagonal covariance for parameter optimization using natural gradient updates. Features include momentum, trust region constraints, and adaptive calibration.
-
-> **Note:** MultiCandidateOptimizer has been removed in version 0.1.1. The package now focuses on the more robust CompactEvoOptimizer implementation.
 
 ## Installation
 
@@ -80,6 +80,53 @@ y_pred = model.predict(X_test)
 print(f"Accuracy: {model.score(X_test, y_test):.4f}")
 ```
 
+### Mini-Batch Training
+
+For large datasets with hundreds of thousands of samples, use the `batch_size` parameter:
+
+```python
+from EBGA.models import EBGARegressor
+
+# Train with mini-batches of 64 samples
+model = EBGARegressor(
+    layers=[(100, 'relu'), (50, 'relu'), (1, 'linear')],
+    batch_size=64,
+    max_iter=1000,
+    random_state=42
+)
+model.fit(X_train, y_train)
+```
+
+The framework automatically handles batch creation and cycles through batches during training. If the last batch would be smaller than `batch_size`, it's merged with the previous batch.
+
+### Activation Functions
+
+EBGA provides 10 built-in activation functions. For classification tasks, **use `sigmoid` or `softmax` in the output layer** and other activations in hidden layers:
+
+```python
+# Recommended for classification
+model = EBGAClassifier(
+    layers=[
+        (64, 'leaky_relu'),  # Hidden layer with LeakyReLU
+        (32, 'gelu'),        # Hidden layer with GELU
+        (10, 'swish'),       # Hidden layer with Swish
+        (3, 'softmax')       # Output layer with softmax
+    ],
+    n_classes=3
+)
+
+# Recommended for regression
+model = EBGARegressor(
+    layers=[
+        (64, 'selu'),       # Hidden layer with SELU
+        (32, 'elu'),         # Hidden layer with ELU
+        (1, 'linear')        # Output layer with linear
+    ]
+)
+```
+
+**Available activations**: `relu`, `leaky_relu`, `elu`, `selu`, `gelu`, `swish`, `sigmoid`, `tanh`, `linear`, `softmax`
+
 ## Building Custom Neural Networks
 
 EBGA also provides low-level components for building custom neural networks. 
@@ -130,7 +177,9 @@ network.set_all_parameters(best_params)
 y_pred = network.forward(X_test)
 ```
 
-**Important:** The current EBGA implementation only supports `Linear` (Dense) layers. Convolutional, recurrent, and other layer types are not yet available.
+**Important:**<br>
+* The current EBGA implementation only supports `Linear` (Dense) layers. Convolutional, recurrent, and other layer types are not yet available.<br>
+* At the moment, several functionalities (e.g. layer-wise training, mini batches) are implemented only for the scikit-learn compatible estimators and do not support custom network architectures out-of-the-box. 
 
 
 ## License

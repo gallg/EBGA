@@ -3,7 +3,9 @@ from EBGA.nn import Sequential
 from EBGA.layers import Linear, Flatten
 from EBGA.activations import (
     Activation, ReLU, Sigmoid, Tanh, Linear, Softmax,
-    get_activation, relu, sigmoid, tanh, softmax
+    LeakyReLU, ELU, SELU, GELU, Swish,
+    get_activation, relu, sigmoid, tanh, softmax,
+    leaky_relu, elu, selu, gelu, swish
 )
 from EBGA.losses import (
     Loss, MSE, MAE, CrossEntropy, BinaryCrossEntropy,
@@ -34,11 +36,21 @@ __all__ = [
     'Tanh',
     'Linear',
     'Softmax',
+    'LeakyReLU',
+    'ELU',
+    'SELU',
+    'GELU',
+    'Swish',
     'get_activation',
     'relu',
     'sigmoid',
     'tanh',
     'softmax',
+    'leaky_relu',
+    'elu',
+    'selu',
+    'gelu',
+    'swish',
     
     # Losses
     'Loss',

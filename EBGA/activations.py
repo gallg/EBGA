@@ -62,6 +62,113 @@ class Softmax(Activation):
         raise NotImplementedError("Softmax backward not implemented")
 
 
+class LeakyReLU(Activation):
+    """
+    Leaky ReLU activation function.
+    
+    f(x) = x, if x > 0
+    f(x) = alpha * x, if x <= 0
+    
+    Default alpha = 0.01
+    """
+    
+    def __init__(self, alpha=0.01):
+        self.alpha = alpha
+    
+    def forward(self, x):
+        return np.where(x > 0, x, self.alpha * x)
+    
+    def backward(self, x):
+        return np.where(x > 0, 1.0, self.alpha)
+
+
+class ELU(Activation):
+    """
+    Exponential Linear Unit activation function.
+    
+    f(x) = x, if x > 0
+    f(x) = alpha * (exp(x) - 1), if x <= 0
+    
+    Default alpha = 1.0
+    """
+    
+    def __init__(self, alpha=1.0):
+        self.alpha = alpha
+    
+    def forward(self, x):
+        return np.where(x > 0, x, self.alpha * (np.exp(x) - 1))
+    
+    def backward(self, x):
+        return np.where(x > 0, 1.0, self.alpha * np.exp(x))
+
+
+class SELU(Activation):
+    """
+    Scaled Exponential Linear Unit activation function.
+    
+    f(x) = lambda * x, if x > 0
+    f(x) = lambda * alpha * exp(x), if x <= 0
+    
+    Default parameters from original paper:
+    - lambda = 1.0507
+    - alpha = 1.67326
+    """
+    
+    def __init__(self, lambda_val=1.0507, alpha=1.67326):
+        self.lambda_val = lambda_val
+        self.alpha = alpha
+    
+    def forward(self, x):
+        return np.where(x > 0, 
+                       self.lambda_val * x, 
+                       self.lambda_val * self.alpha * (np.exp(x) - 1))
+    
+    def backward(self, x):
+        return np.where(x > 0, 
+                       self.lambda_val, 
+                       self.lambda_val * self.alpha * np.exp(x))
+
+
+class GELU(Activation):
+    """
+    Gaussian Error Linear Unit activation function.
+    
+    f(x) = x * Φ(x)
+    where Φ(x) is the Gaussian CDF, approximated as:
+    Φ(x) ≈ 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+    
+    This is the approximation commonly used in practice.
+    """
+    
+    def forward(self, x):
+        # Approximation of Gaussian CDF
+        inner = np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)
+        return 0.5 * x * (1 + np.tanh(inner))
+    
+    def backward(self, x):
+        # Derivative approximation
+        inner = np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)
+        tanh_val = np.tanh(inner)
+        # Derivative of CDF approximation
+        cdf_deriv = 0.5 * (1 - tanh_val**2) * np.sqrt(2 / np.pi) * (1 + 0.134145 * x**2)
+        return 0.5 * (1 + tanh_val) + x * cdf_deriv
+
+
+class Swish(Activation):
+    """
+    Swish activation function.
+    
+    f(x) = x * sigmoid(x) = x / (1 + exp(-x))
+    """
+    
+    def forward(self, x):
+        return x / (1 + np.exp(-x))
+    
+    def backward(self, x):
+        sigmoid_x = 1 / (1 + np.exp(-x))
+        return sigmoid_x + x * sigmoid_x * (1 - sigmoid_x)
+
+
 # Factory for creating activation instances
 ACTIVATION_REGISTRY = {
     'relu': ReLU,
@@ -69,6 +176,11 @@ ACTIVATION_REGISTRY = {
     'tanh': Tanh,
     'linear': Linear,
     'softmax': Softmax,
+    'leaky_relu': LeakyReLU,
+    'elu': ELU,
+    'selu': SELU,
+    'gelu': GELU,
+    'swish': Swish,
 }
 
 
@@ -97,3 +209,23 @@ def linear(x):
 
 def softmax(x, axis=-1):
     return Softmax().forward(x, axis=axis)
+
+
+def leaky_relu(x, alpha=0.01):
+    return LeakyReLU(alpha=alpha).forward(x)
+
+
+def elu(x, alpha=1.0):
+    return ELU(alpha=alpha).forward(x)
+
+
+def selu(x, lambda_val=1.0507, alpha=1.67326):
+    return SELU(lambda_val=lambda_val, alpha=alpha).forward(x)
+
+
+def gelu(x):
+    return GELU().forward(x)
+
+
+def swish(x):
+    return Swish().forward(x)
