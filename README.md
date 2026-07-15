@@ -1,6 +1,6 @@
 # EBGA: Evolutionary Based Gradient Alignment
 
-**EBGA** (**E**volutionary **B**ased **G**radient **A**lignment) is a machine learning framework that provides an alternative to classical gradient-based methods. It uses evolutionary computation with natural gradient updates on distribution parameters, enabling training of neural networks without computing objective function gradients.
+**EBGA** (**E**volutionary **B**ased **G**radient **A**lignment) is a machine learning framework that provides an alternative to classical gradient-based methods. It uses evolutionary computation with natural gradient updates on distribution parameters (μ, σ), enabling training of neural networks without computing objective function gradients.
 
 ## Overview
 
@@ -14,6 +14,8 @@ EBGA offers a familiar API to create neural network-based models, similar to kno
 - **Distribution-based optimization** - Parameters optimized through evolving Gaussian distributions
 - **Handles non-differentiable losses** - Works with any loss function
 - **Flexible training modes** - Supports both layer-wise and direct (all-layers-together) training
+- **Mini-batch training** - Train on large datasets with configurable batch sizes
+- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, Swish
 
 
 ### Available Models
@@ -42,7 +44,7 @@ pip install -e .
 - numpy
 - scikit-learn
 
-## Quick Start
+## Quick Start (with scikit-learn)
 
 ```python
 from EBGA.models import EBGARegressor
@@ -66,7 +68,7 @@ y_pred = model.predict(X_test)
 print(f"R² Score: {model.score(X_test, y_test):.4f}")
 ```
 
-
+* For more implementation-related **examples** and the **API reference** please read the [documentation](/docs/index.md)
 
 ## License
 

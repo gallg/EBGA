@@ -62,6 +62,7 @@ score = model.score(X, y)  # Returns R²
 - `patience`: Patience for early stopping
 - `layer_patience`: Patience for layer-wise plateau detection
 - `normalize_output`: Normalize output to 0-1 range
+- `batch_size`: Batch size for mini-batch training. If None (default), uses full dataset. If set to an integer, trains on mini-batches. Last batch is merged with previous if too small.
 - `random_state`: Random seed
 
 ---
@@ -108,6 +109,9 @@ score = model.score(X, y)  # Returns accuracy
 - `get_params(deep=True)`: Get model parameters
 - `set_params(**params)`: Set model parameters
 - `predict_proba(X)`: Predict class probabilities
+
+**Note on Activations for Classification:**
+For best results with classification, use `sigmoid` for binary classification with 1 output neuron, or `softmax` for multi-class classification with N output neurons. Activations like LeakyReLU, ELU, SELU, GELU, and Swish should be used only in hidden layers, not in the output layer.
 
 ---
 
@@ -166,26 +170,40 @@ layer = Flatten()
 
 Available activation functions:
 - ReLU / relu
+- LeakyReLU / leaky_relu (configurable alpha, default=0.01)
+- ELU / elu (configurable alpha, default=1.0)
+- SELU / selu (self-normalizing, default lambda=1.0507, alpha=1.67326)
+- GELU / gelu (Gaussian error linear unit)
+- Swish / swish (x * sigmoid(x))
 - Sigmoid / sigmoid
 - Tanh / tanh
 - Linear / linear
 - Softmax / softmax
 
 ```python
-from EBGA.activations import ReLU, Sigmoid, Tanh, Linear, Softmax
-from EBGA.activations import relu, sigmoid, tanh, linear, softmax
+from EBGA.activations import (
+    ReLU, LeakyReLU, ELU, SELU, GELU, Swish,
+    Sigmoid, Tanh, Linear, Softmax
+)
+from EBGA.activations import (
+    relu, leaky_relu, elu, selu, gelu, swish,
+    sigmoid, tanh, linear, softmax
+)
 from EBGA.activations import get_activation
 
 # As classes
-activation = ReLU()
+activation = LeakyReLU(alpha=0.03)
 output = activation(x)
 
 # As functions
-output = relu(x)
+output = leaky_relu(x, alpha=0.01)
+output = gelu(x)
 
 # Get by name
-activation = get_activation('relu')
+activation = get_activation('leaky_relu')
 ```
+
+**Important**: For classification tasks, use `sigmoid` or `softmax` in the output layer. Other activations (LeakyReLU, ELU, SELU, GELU, Swish) should only be used in hidden layers to avoid numerical instability and incorrect probability outputs.
 
 ---
 
