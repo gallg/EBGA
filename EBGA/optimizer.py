@@ -1,23 +1,17 @@
 import numpy as np
 
-
-class BudgetExceededError(Exception):
-    pass
-
-
 class BaseEvoOptimizer:
     """
     Base class for evolutionary optimizers with shared infrastructure.
     
-    Provides common functionality for budget management, parameter clipping,
-    loss scale tracking, and callback handling.
+    Provides common functionality for parameter clipping and loss scale tracking.
     """
     
     def __init__(self, param_dim, lr_mu=0.05, lr_sigma=0.005,
                  sigma_min=0.001, sigma_max=1.0,
                  calibration_size=20, calibration_interval=25,
                  credit_factor=2.0, sigma_regularization=0.0,
-                 bounds=None, budget=None, random_state=None):
+                 bounds=None, random_state=None):
         # Store common parameters
         self.param_dim = param_dim
         self.lr_mu = lr_mu
@@ -29,7 +23,6 @@ class BaseEvoOptimizer:
         self.credit_factor = credit_factor
         self.sigma_regularization = sigma_regularization
         self.bounds = bounds
-        self.budget = budget
         
         # Random state
         if random_state is None:
@@ -39,24 +32,11 @@ class BaseEvoOptimizer:
         else:
             self.rng = random_state
         
-        # Tracking
-        self.num_evaluations = 0
-        self.callbacks = {"tell": []}
-        
         # Loss scale for adaptive learning rates
         self.loss_scale = 1.0
         self.loss_scale_decay = 0.99
     
-    def register_callback(self, event, callback):
-        """Register a callback function for an event."""
-        if event in self.callbacks:
-            self.callbacks[event].append(callback)
-    
-    def _check_budget(self, evals_this_step):
-        """Check if budget is exceeded."""
-        if self.budget is not None and self.num_evaluations + evals_this_step > self.budget:
-            raise BudgetExceededError("Optimization budget exceeded")
-    
+
     def _update_loss_scale(self, losses):
         """Update loss scale estimate using exponential moving average."""
         self.loss_scale = (
@@ -76,22 +56,13 @@ class BaseEvoOptimizer:
             float: Mean loss of evaluated samples
         """
         is_calibration = iteration is None or iteration % self.calibration_interval == 0
-        evals_this_step = self.calibration_size if is_calibration else 2
-        
-        self._check_budget(evals_this_step)
         
         if is_calibration:
             loss = self._population_step(loss_func)
         else:
             loss = self._pairwise_step(loss_func)
         
-        self.num_evaluations += evals_this_step
         self._clip_parameters()
-        
-        # Trigger callbacks with current parameters
-        params = self.get_parameters()
-        for callback in self.callbacks["tell"]:
-            callback(self, params.copy(), loss)
         
         return loss
     
@@ -137,20 +108,15 @@ class BaseEvoOptimizer:
         self.initialize(initial_params)
         
         if max_iter is None:
-            max_iter = self.budget if self.budget else 1000
+            max_iter = 1000
         
         for iteration in range(max_iter):
-            try:
-                loss = self.step(func, iteration=iteration)
-            except BudgetExceededError:
-                break
+            loss = self.step(func, iteration=iteration)
         
         return OptimizationResult(
             value=self.get_parameters().copy(),
-            loss=loss,
-            num_evaluations=self.num_evaluations
+            loss=loss
         )
-
 
 class CompactEvoOptimizer(BaseEvoOptimizer):
     """
@@ -190,8 +156,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             are in range [0.01, 1.0] for typical problems.
         bounds: tuple, optional
             (lower, upper) bounds for each parameter
-        budget: int, optional
-            Maximum number of evaluations
         random_state: RandomState, optional
             Random number generator
     """
@@ -201,12 +165,12 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
                  calibration_size=20, calibration_interval=50,
                  credit_factor=2.0, sigma_regularization=0.0,
                  momentum=0.5, trust_region_radius=None,
-                 bounds=None, budget=None, random_state=None):
+                 bounds=None, random_state=None):
         
         super().__init__(param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
                         calibration_size, calibration_interval,
                         credit_factor, sigma_regularization,
-                        bounds, budget, random_state)
+                        bounds, random_state)
         
         # Momentum parameters
         self.momentum = momentum
@@ -229,7 +193,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         # Initialize sigma to constant value; per-dimension adaptation happens during optimization
         self.sigma = np.ones(self.param_dim) * 0.1
         self.velocity = np.zeros(self.param_dim) if self.momentum > 0 else None
-        self.num_evaluations = 0
     
     def _clip_parameters(self):
         """Clip mu and sigma to bounds."""
@@ -394,7 +357,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             'sigma_regularization': self.sigma_regularization,
             'momentum': self.momentum,
             'trust_region_radius': self.trust_region_radius,
-            'num_evaluations': self.num_evaluations,
             'loss_scale': self.loss_scale,
         }
     
@@ -410,14 +372,10 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         self.sigma_regularization = state_dict.get('sigma_regularization', self.sigma_regularization)
         self.momentum = state_dict.get('momentum', self.momentum)
         self.trust_region_radius = state_dict.get('trust_region_radius', self.trust_region_radius)
-        self.num_evaluations = state_dict.get('num_evaluations', 0)
         self.loss_scale = state_dict.get('loss_scale', 1.0)
-
-
 
 class OptimizationResult:
     """Result of an optimization run."""
-    def __init__(self, value, loss, num_evaluations=0):
+    def __init__(self, value, loss):
         self.value = value
         self.loss = loss
-        self.num_evaluations = num_evaluations
