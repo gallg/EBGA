@@ -1,6 +1,6 @@
-# EBGA: Evolutionary Based Gradient Alignment
+# EBGA: Evolutionary-Based Gradient Alignment
 
-**EBGA** (**E**volutionary **B**ased **G**radient **A**lignment) is a Python framework for training neural networks without computing objective function gradients. It uses evolutionary computation with natural gradient updates on distribution parameters (μ, σ) to provide an alternative to classical gradient-based methods.
+**EBGA** (**E**volutionary-**B**ased **G**radient **A**lignment) is a Python framework for training neural networks without computing objective function gradients. It uses evolutionary computation with natural gradient updates on distribution parameters (μ, σ) to provide an alternative to classical gradient-based methods.
 
 ## Overview
 
@@ -8,7 +8,7 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 
 ### Key Characteristics
 
-- **Natural gradient optimization** - Uses natural gradients with respect to distribution parameters, not objective function gradients
+- **Natural gradient optimization** - Optimizes distribution parameters using natural gradients instead of objective function gradients
 - **Scikit-learn compatible** - Familiar fit/predict interface
 - **Modular architecture** - Build networks layer by layer
 - **Distribution-based optimization** - Parameters optimized through Gaussian distributions
@@ -25,7 +25,9 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 
 ### Available Optimizers
 
-- **CompactEvoOptimizer** - Single Gaussian distribution with diagonal covariance for parameter optimization using natural gradient updates. Features include momentum, trust region constraints, and adaptive calibration.
+- **CompactEvoOptimizer** - Uses a single Gaussian distribution with diagonal covariance for parameter optimization via natural gradient updates, with momentum, trust region constraints, and adaptive calibration.
+
+---
 
 ## Installation
 
@@ -34,6 +36,8 @@ pip install -e .
 ```
 
 Requirements: Python 3.10+, numpy, scikit-learn
+
+---
 
 ## Quick Start
 
@@ -97,7 +101,7 @@ model = EBGARegressor(
 model.fit(X_train, y_train)
 ```
 
-The framework automatically handles batch creation and cycles through batches during training. If the last batch would be smaller than `batch_size`, it's merged with the previous batch.
+The framework automatically creates batches and cycles through them during training. If the last batch would be smaller than `batch_size`, it's merged with the previous batch.
 
 ### Activation Functions
 
@@ -107,10 +111,10 @@ EBGA provides 10 built-in activation functions. For classification tasks, **use 
 # Recommended for classification
 model = EBGAClassifier(
     layers=[
-        (64, 'leaky_relu'),  # Hidden layer with LeakyReLU
-        (32, 'gelu'),        # Hidden layer with GELU
-        (10, 'swish'),       # Hidden layer with Swish
-        (3, 'softmax')       # Output layer with softmax
+        (64, 'leaky_relu'),
+        (32, 'gelu'),
+        (10, 'swish'),
+        (3, 'softmax')
     ],
     n_classes=3
 )
@@ -118,19 +122,21 @@ model = EBGAClassifier(
 # Recommended for regression
 model = EBGARegressor(
     layers=[
-        (64, 'selu'),       # Hidden layer with SELU
-        (32, 'elu'),         # Hidden layer with ELU
-        (1, 'linear')        # Output layer with linear
+        (64, 'selu'),
+        (32, 'elu'),
+        (1, 'linear')
     ]
 )
 ```
 
-**Available activations**: `relu`, `leaky_relu`, `elu`, `selu`, `gelu`, `swish`, `sigmoid`, `tanh`, `linear`, `softmax`
+A full list of available activation functions is provided in the [API Reference](api.md).
 
 ## Building Custom Neural Networks
 
-EBGA also provides low-level components for building custom neural networks. 
-**Note: The current implementation supports only Dense (Linear) layers.**
+EBGA exposes low-level components for building custom neural networks from scratch.
+
+
+### Basic Custom Network
 
 ```python
 from EBGA.nn import Sequential
@@ -138,17 +144,17 @@ from EBGA.layers import Linear
 from EBGA.optimizer import CompactEvoOptimizer
 import numpy as np
 
-# Build a custom network with Dense layers only
+# Build a custom network
 network = Sequential(
-    Linear(64, activation='relu'),    # Dense layer: 64 units, ReLU activation
-    Linear(32, activation='relu'),    # Dense layer: 32 units, ReLU activation
-    Linear(1, activation='linear')     # Output layer: 1 unit, linear activation
+    Linear(64, activation='relu'),
+    Linear(32, activation='relu'),
+    Linear(1, activation='linear')
 )
 
 # Initialize the network with input size
-network.initialize(input_size=10)  # 10 input features
+network.initialize(input_size=10)
 
-# Manually train the network (for advanced users)
+# Train the network
 optimizer = CompactEvoOptimizer(
     param_dim=network.parameter_count(),
     lr_mu=0.05,
@@ -163,7 +169,7 @@ optimizer.initialize(params)
 def loss_func(params):
     network.set_all_parameters(params)
     y_pred = network.forward(X_train)
-    return np.mean((y_pred - y_train) ** 2)  # MSE
+    return np.mean((y_pred - y_train) ** 2)
 
 # Train
 for iteration in range(1000):
@@ -177,9 +183,50 @@ network.set_all_parameters(best_params)
 y_pred = network.forward(X_test)
 ```
 
-**Important:**<br>
-* The current EBGA implementation only supports `Linear` (Dense) layers. Convolutional, recurrent, and other layer types are not yet available.<br>
-* At the moment, several functionalities (e.g. layer-wise training, mini batches) are implemented only for the scikit-learn compatible estimators and do not support custom network architectures out-of-the-box. 
+
+### Scale-Aware Initialization
+
+For improved convergence, pass training targets to `initialize()`:
+
+```python
+# Initialize with scale-aware output
+network = Sequential(Linear(64, activation='relu'), Linear(1, activation='linear'))
+network.initialize(input_size=10, scale_aware=y_train)
+```
+
+
+### Mini-Batch Training with Dataset
+
+For mini-batch training with custom networks, use the `Dataset` class:
+
+```python
+from EBGA.dataset import Dataset
+from EBGA.nn import Sequential
+from EBGA.layers import Linear
+from EBGA.optimizer import CompactEvoOptimizer
+
+# Create dataset with batching
+dataset = Dataset(X_train, y_train, batch_size=32, shuffle=True)
+
+# Build network
+network = Sequential(Linear(64, activation='relu'), Linear(1, activation='linear'))
+network.initialize(input_size=X_train.shape[1], scale_aware=y_train)
+
+# Create optimizer
+optimizer = CompactEvoOptimizer(param_dim=network.parameter_count())
+optimizer.initialize(network.get_all_parameters())
+
+# Training loop with batches
+for epoch in range(100):
+    for X_batch, y_batch in dataset.batches():
+        def batch_loss(params):
+            network.set_all_parameters(params)
+            y_pred = network.forward(X_batch).flatten()
+            return np.mean((y_pred - y_batch) ** 2)
+        optimizer.step(batch_loss)
+```
+
+**Important:** The current EBGA implementation only supports `Linear` (Dense) layers. Convolutional, recurrent, and other layer types are not yet available.
 
 
 ## License

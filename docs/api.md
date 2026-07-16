@@ -2,18 +2,14 @@
 
 ## Models
 
-### EBGARegressor
+#### EBGARegressor
 
 Scikit-learn compatible regressor for neural network training with natural gradients.
 
-**Additional Methods:**
-- `get_params(deep=True)`: Get model parameters
-- `set_params(**params)`: Set model parameters
-
-**Notes:**
-- Uses explicit layer specification via `layers` parameter
-- Can use layer-wise training (`use_layerwise=True`) or direct training (`use_layerwise=False`)
-- Supports normalization of output via `normalize_output=True`
+**Notes:**<br>
+- Uses explicit layer specification via `layers` parameter<br>
+- Supports layer-wise training (`use_layerwise=True`) or direct training<br>
+- Supports output normalization via `normalize_output=True`<br>
 
 ```python
 from EBGA.models import EBGARegressor
@@ -44,30 +40,32 @@ y_pred = model.predict(X)
 score = model.score(X, y)  # Returns R²
 ```
 
-**Parameters:**
-- `layers`: List of (size, activation) tuples for explicit layer specification. Each tuple defines (output_size, activation). Example: `[(50, 'relu'), (1, 'linear')]` for 1 hidden layer with 50 units and ReLU activation, plus output layer with linear activation
-- `loss`: Loss function ('mse' or 'mae')
-- `optimizer`: Optimizer class (currently only CompactEvoOptimizer is supported)
-- `use_layerwise`: If True, use layer-wise training; if False, train all layers together
-- `sigma_regularization`: Strength of sigma diversity regularization
-- `max_iter`: Maximum training iterations
-- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)
-- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)
-- `sigma_min`: Minimum sigma value
-- `sigma_max`: Maximum sigma value
-- `calibration_size`: Population size for calibration
-- `calibration_interval`: Frequency of population calibration
-- `credit_factor`: Strength of credit assignment
-- `early_stopping`: Enable early stopping
-- `patience`: Patience for early stopping
-- `layer_patience`: Patience for layer-wise plateau detection
-- `normalize_output`: Normalize output to 0-1 range
-- `batch_size`: Batch size for mini-batch training. If None (default), uses full dataset. If set to an integer, trains on mini-batches. Last batch is merged with previous if too small.
-- `random_state`: Random seed
+**Parameters:**<br>
+- `layers`: List of `(output_size, activation)` tuples, e.g., `[(50, 'relu'), (1, 'linear')]`<br>
+- `loss`: Loss function ('mse' or 'mae')<br>
+- `optimizer`: Optimizer class (currently only CompactEvoOptimizer is supported)<br>
+- `use_layerwise`: If True, use layer-wise training; if False, train all layers together<br>
+- `sigma_regularization`: Strength of sigma diversity regularization<br>
+- `max_iter`: Maximum training iterations<br>
+- `lr_mu`: Learning rate for mean parameters<br>
+- `lr_sigma`: Learning rate for sigma parameters<br>
+- `sigma_min`: Minimum sigma value<br>
+- `sigma_max`: Maximum sigma value<br>
+- `calibration_size`: Population size for calibration<br>
+- `calibration_interval`: Frequency of population calibration<br>
+- `credit_factor`: Strength of credit assignment<br>
+- `early_stopping`: Enable early stopping<br>
+- `patience`: Patience for early stopping<br>
+- `layer_patience`: Patience for layer-wise plateau detection<br>
+- `normalize_output`: Normalize output to 0-1 range<br>
+- `batch_size`: Batch size for mini-batch training. If `None`, uses the full dataset; last batch is merged with the previous one if too small<br>
+- `momentum`: Momentum coefficient for velocity-based parameter updates<br>
+- `trust_region_radius`: Maximum allowed update norm (L2) per step for stability<br>
+- `random_state`: Random seed<br>
 
 ---
 
-### EBGAClassifier
+#### EBGAClassifier
 
 Scikit-learn compatible classifier for neural network training with natural gradients.
 
@@ -101,25 +99,23 @@ y_proba = model.predict_proba(X)
 score = model.score(X, y)  # Returns accuracy
 ```
 
-**Parameters:** Same as EBGARegressor, plus:
-- `n_classes`: Number of classes (auto-inferred if None)
-- `loss`: Loss function ('cross_entropy')
+**Parameters:** Same as EBGARegressor, plus:<br>
+- `n_classes`: Number of classes (auto-inferred if None)<br>
+- `loss`: Loss function ('cross_entropy')<br>
 
-**Additional Methods:**
-- `get_params(deep=True)`: Get model parameters
-- `set_params(**params)`: Set model parameters
-- `predict_proba(X)`: Predict class probabilities
+**Additional Methods:**<br>
+- `predict_proba(X)`: Predict class probabilities<br>
+- `get_params(deep=True)`: Get model parameters<br>
+- `set_params(**params)`: Set model parameters<br>
 
-**Note on Activations for Classification:**
-For best results with classification, use `sigmoid` for binary classification with 1 output neuron, or `softmax` for multi-class classification with N output neurons. Activations like LeakyReLU, ELU, SELU, GELU, and Swish should be used only in hidden layers, not in the output layer.
+**Note on Activations for Classification:**<br>
+Use `sigmoid` for binary classification with 1 output neuron, or `softmax` for multi-class classification with N output neurons. Other activations should only be used in hidden layers.<br>
 
 ---
 
 ## Neural Network
 
-## Neural Network
-
-### Sequential
+#### Sequential
 
 Container for sequential layers.
 
@@ -139,7 +135,7 @@ count = network.parameter_count()
 
 ## Layers
 
-### Linear
+#### Linear
 
 Fully connected layer.
 
@@ -149,12 +145,12 @@ from EBGA.layers import Linear
 layer = Linear(output_size, activation=None, use_bias=True)
 ```
 
-**Parameters:**
-- `output_size`: Number of output units
-- `activation`: Activation function name or callable
-- `use_bias`: Whether to use bias term
+**Parameters:**<br>
+- `output_size`: Number of output units<br>
+- `activation`: Activation function name or callable<br>
+- `use_bias`: Whether to use bias term<br>
 
-### Flatten
+#### Flatten
 
 Flatten layer.
 
@@ -168,17 +164,17 @@ layer = Flatten()
 
 ## Activations
 
-Available activation functions:
-- ReLU / relu
-- LeakyReLU / leaky_relu (configurable alpha, default=0.01)
-- ELU / elu (configurable alpha, default=1.0)
-- SELU / selu (self-normalizing, default lambda=1.0507, alpha=1.67326)
-- GELU / gelu (Gaussian error linear unit)
-- Swish / swish (x * sigmoid(x))
-- Sigmoid / sigmoid
-- Tanh / tanh
-- Linear / linear
-- Softmax / softmax
+Available activation functions:<br>
+- ReLU / relu<br>
+- LeakyReLU / leaky_relu (configurable alpha, default=0.01)<br>
+- ELU / elu (configurable alpha, default=1.0)<br>
+- SELU / selu (self-normalizing, default lambda=1.0507, alpha=1.67326)<br>
+- GELU / gelu (Gaussian error linear unit)<br>
+- Swish / swish (x * sigmoid(x))<br>
+- Sigmoid / sigmoid<br>
+- Tanh / tanh<br>
+- Linear / linear<br>
+- Softmax / softmax<br>
 
 ```python
 from EBGA.activations import (
@@ -187,9 +183,8 @@ from EBGA.activations import (
 )
 from EBGA.activations import (
     relu, leaky_relu, elu, selu, gelu, swish,
-    sigmoid, tanh, linear, softmax
+    sigmoid, tanh, linear, softmax, get_activation
 )
-from EBGA.activations import get_activation
 
 # As classes
 activation = LeakyReLU(alpha=0.03)
@@ -203,22 +198,20 @@ output = gelu(x)
 activation = get_activation('leaky_relu')
 ```
 
-**Important**: For classification tasks, use `sigmoid` or `softmax` in the output layer. Other activations (LeakyReLU, ELU, SELU, GELU, Swish) should only be used in hidden layers to avoid numerical instability and incorrect probability outputs.
-
 ---
+
 
 ## Losses
 
-Available loss functions:
-- MSE / mse_loss (Mean Squared Error)
-- MAE / mae_loss (Mean Absolute Error)
-- CrossEntropy / cross_entropy_loss
-- BinaryCrossEntropy / bce_loss
+Available loss functions:<br>
+- MSE / mse_loss (Mean Squared Error)<br>
+- MAE / mae_loss (Mean Absolute Error)<br>
+- CrossEntropy / cross_entropy_loss<br>
+- BinaryCrossEntropy / bce_loss<br>
 
 ```python
 from EBGA.losses import MSE, MAE, CrossEntropy, BinaryCrossEntropy
-from EBGA.losses import mse_loss, mae_loss, cross_entropy_loss, bce_loss
-from EBGA.losses import get_loss
+from EBGA.losses import mse_loss, mae_loss, cross_entropy_loss, bce_loss, get_loss
 
 # As classes
 loss = MSE()
@@ -235,9 +228,9 @@ loss_fn = get_loss('mse')
 
 ## Optimizers
 
-### CompactEvoOptimizer
+#### CompactEvoOptimizer
 
-Distribution-based evolutionary optimizer with single distribution per parameter.
+Distribution-based evolutionary optimizer with a single distribution per parameter.
 
 ```python
 from EBGA.optimizer import CompactEvoOptimizer
@@ -262,41 +255,69 @@ loss = optimizer.step(loss_func, iteration=iter)
 params = optimizer.get_parameters()
 ```
 
-**Parameters:**
-- `param_dim`: Dimensionality of parameter space
-- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)
-- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)
-- `sigma_min`: Minimum sigma value
-- `sigma_max`: Maximum sigma value
-- `calibration_size`: Population size for calibration
-- `calibration_interval`: Frequency of population calibration (default: 50)
-- `credit_factor`: Strength of credit assignment
-- `sigma_regularization`: Strength of sigma regularization
-- `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)
-- `trust_region_radius`: Maximum allowed update norm (L2) per step for stability
-- `random_state`: Random seed
+**Parameters:**<br>
+- `param_dim`: Dimensionality of parameter space<br>
+- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)<br>
+- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)<br>
+- `sigma_min`: Minimum sigma value<br>
+- `sigma_max`: Maximum sigma value<br>
+- `calibration_size`: Population size for calibration<br>
+- `calibration_interval`: Frequency of population calibration (default: 50)<br>
+- `credit_factor`: Strength of credit assignment<br>
+- `sigma_regularization`: Strength of sigma regularization<br>
+- `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)<br>
+- `trust_region_radius`: Maximum allowed update norm (L2) per step for stability<br>
+- `random_state`: Random seed<br>
 
-**Methods:**
-- `initialize(initial_params)`: Initialize optimizer with parameters
-- `step(loss_func, iteration)`: Perform one optimization step
-- `get_parameters()`: Get current mean parameters
+**Methods:**<br>
+- `initialize(initial_params)`: Initialize optimizer with parameters<br>
+- `step(loss_func, iteration)`: Perform one optimization step<br>
+- `get_parameters()`: Get current mean parameters<br>
 
-**Attributes:**
-- `mu`: Current mean parameters
-- `sigma`: Current standard deviation parameters
+**Attributes:**<br>
+- `mu`: Current mean parameters<br>
+- `sigma`: Current standard deviation parameters<br>
+
+---
+
+## Dataset
+
+#### Dataset
+
+Dataset class for batching, similar to PyTorch's Dataset. For numpy arrays, pass X and y to the constructor. For custom datasets, subclass and implement `__len__` and `__getitem__`.
+
+```python
+from EBGA.dataset import Dataset
+
+# Create dataset with batching
+dataset = Dataset(X, y, batch_size=32, shuffle=True, random_state=42)
+
+# Iterate over batches
+for X_batch, y_batch in dataset.batches():
+    # Process batch
+    pass
+```
+
+**Parameters:**<br>
+- `X`: Input features (optional, for array-based datasets)<br>
+- `y`: Target values (optional, for array-based datasets)<br>
+- `batch_size`: Number of samples per batch (None = full dataset)<br>
+- `shuffle`: Shuffle data at each epoch<br>
+- `random_state`: Random seed for shuffling<br>
+
+**Methods:**<br>
+- `batches()`: Yield (X_batch, y_batch) numpy arrays<br>
 
 ---
 
 ## Utilities
 
-### Checkpointing
+#### Checkpointing
 
 ```python
 from EBGA.utils import save_model, load_model, save_network, load_network
 
 # Save and load models
-model = EBGARegressor(layers=[(10, 'relu'), (1, 'linear')])
-model.fit(X_train, y_train)
 save_model(model, 'model.npz')
 loaded_model = load_model('model.npz')
 
@@ -309,8 +330,8 @@ save_network(network, optimizer, 'network.npz')
 loaded_network, loaded_optimizer = load_network('network.npz')
 ```
 
-**Functions:**
-- `save_model(model, filepath)`: Save a trained EBGARegressor or EBGAClassifier
-- `load_model(filepath)`: Load a saved model
-- `save_network(network, optimizer, filepath)`: Save a custom network and optimizer
-- `load_network(filepath)`: Load a saved network and optimizer
+**Functions:**<br>
+- `save_model(model, filepath)`: Save a trained EBGARegressor or EBGAClassifier<br>
+- `load_model(filepath)`: Load a saved model<br>
+- `save_network(network, optimizer, filepath)`: Save a custom network and optimizer<br>
+- `load_network(filepath)`: Load a saved network and optimizer<br>
