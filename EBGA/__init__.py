@@ -1,6 +1,7 @@
 from EBGA.models import EBGARegressor, EBGAClassifier
 from EBGA.nn import Sequential
 from EBGA.layers import Linear, Flatten
+from EBGA.dataset import Dataset
 from EBGA.activations import (
     Activation, ReLU, Sigmoid, Tanh, Linear, Softmax,
     LeakyReLU, ELU, SELU, GELU, Swish,
@@ -23,6 +24,9 @@ __all__ = [
     
     # Neural network
     'Sequential',
+    
+    # Dataset
+    'Dataset',
     
     # Layers
     'Layer',

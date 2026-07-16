@@ -7,7 +7,15 @@ class Sequential:
         self.layers = list(layers)
         self.initialized = False
     
-    def initialize(self, input_size):
+    def initialize(self, input_size, scale_aware=None):
+        """
+        Initialize network parameters.
+
+        Args:
+            input_size: Number of input features
+            scale_aware: Target values for scale-aware output initialization.
+                       If provided, the last parameter is set to mean(scale_aware).
+        """
         current_size = input_size
         for i, layer in enumerate(self.layers):
             layer.initialize(current_size)
@@ -15,6 +23,11 @@ class Sequential:
         self.initialized = True
         self.input_size = input_size
         self.output_size = current_size
+
+        if scale_aware is not None:
+            all_params = self.get_all_parameters()
+            all_params[-1] = float(np.mean(scale_aware))
+            self.set_all_parameters(all_params)
     
     def forward(self, x):
         if not self.initialized:

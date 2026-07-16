@@ -318,19 +318,6 @@ class BaseModel(BaseEstimator):
         
         return Sequential(*network_layers)
     
-    def _initialize_parameters_with_scale_awareness(self, y):
-        """
-        Initialize network parameters with scale-aware output bias.
-        
-        Args:
-            y: Target values for scale estimation
-        """
-        all_params = self.network_.get_all_parameters()
-        target_mean = np.mean(y)
-        # Set last parameter (output bias) to target mean
-        all_params[-1] = target_mean
-        self.network_.set_all_parameters(all_params)
-    
     def _fit_layer_wise(self, X, y, loss_func=None):
         """
         Train network using layer-wise evolutionary optimization with greedy pretraining.
@@ -355,9 +342,8 @@ class BaseModel(BaseEstimator):
         
         n_layers = len(self.network_.layers)
         
-        # Initialize first layer
-        self.network_.initialize(self.n_features_)
-        self._initialize_parameters_with_scale_awareness(y)
+        # Initialize first layer with scale-aware output
+        self.network_.initialize(self.n_features_, scale_aware=y)
         
         # Get optimizer configuration
         optimizer_config = self._get_optimizer_config()
@@ -516,9 +502,8 @@ class BaseModel(BaseEstimator):
             else:
                 loss_func = self._create_loss_func(X, y)
         
-        # Initialize network
-        self.network_.initialize(self.n_features_)
-        self._initialize_parameters_with_scale_awareness(y)
+        # Initialize network with scale-aware output
+        self.network_.initialize(self.n_features_, scale_aware=y)
         
         # Get optimizer configuration
         optimizer_config = self._get_optimizer_config()
