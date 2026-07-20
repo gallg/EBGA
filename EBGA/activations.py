@@ -8,46 +8,30 @@ class Activation:
     
     def forward(self, x):
         raise NotImplementedError
-    
-    def backward(self, x):
-        raise NotImplementedError
 
 
 class ReLU(Activation):
     
     def forward(self, x):
         return np.maximum(0, x)
-    
-    def backward(self, x):
-        return (x > 0).astype(float)
 
 
 class Sigmoid(Activation):
     
     def forward(self, x):
         return 1 / (1 + np.exp(-x))
-    
-    def backward(self, x):
-        s = self.forward(x)
-        return s * (1 - s)
 
 
 class Tanh(Activation):
     
     def forward(self, x):
         return np.tanh(x)
-    
-    def backward(self, x):
-        return 1 - np.tanh(x)**2
 
 
 class Linear(Activation):
     
     def forward(self, x):
         return x
-    
-    def backward(self, x):
-        return np.ones_like(x)
 
 
 class Softmax(Activation):
@@ -56,10 +40,6 @@ class Softmax(Activation):
         # Subtract max for numerical stability
         x_exp = np.exp(x - np.max(x, axis=axis, keepdims=True))
         return x_exp / np.sum(x_exp, axis=axis, keepdims=True)
-    
-    def backward(self, x):
-        # Not typically used in natural gradient framework
-        raise NotImplementedError("Softmax backward not implemented")
 
 
 class LeakyReLU(Activation):
@@ -77,9 +57,6 @@ class LeakyReLU(Activation):
     
     def forward(self, x):
         return np.where(x > 0, x, self.alpha * x)
-    
-    def backward(self, x):
-        return np.where(x > 0, 1.0, self.alpha)
 
 
 class ELU(Activation):
@@ -97,9 +74,6 @@ class ELU(Activation):
     
     def forward(self, x):
         return np.where(x > 0, x, self.alpha * (np.exp(x) - 1))
-    
-    def backward(self, x):
-        return np.where(x > 0, 1.0, self.alpha * np.exp(x))
 
 
 class SELU(Activation):
@@ -122,11 +96,6 @@ class SELU(Activation):
         return np.where(x > 0, 
                        self.lambda_val * x, 
                        self.lambda_val * self.alpha * (np.exp(x) - 1))
-    
-    def backward(self, x):
-        return np.where(x > 0, 
-                       self.lambda_val, 
-                       self.lambda_val * self.alpha * np.exp(x))
 
 
 class GELU(Activation):
@@ -144,14 +113,6 @@ class GELU(Activation):
         # Approximation of Gaussian CDF
         inner = np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)
         return 0.5 * x * (1 + np.tanh(inner))
-    
-    def backward(self, x):
-        # Derivative approximation
-        inner = np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)
-        tanh_val = np.tanh(inner)
-        # Derivative of CDF approximation
-        cdf_deriv = 0.5 * (1 - tanh_val**2) * np.sqrt(2 / np.pi) * (1 + 0.134145 * x**2)
-        return 0.5 * (1 + tanh_val) + x * cdf_deriv
 
 
 class Swish(Activation):
@@ -163,10 +124,6 @@ class Swish(Activation):
     
     def forward(self, x):
         return x / (1 + np.exp(-x))
-    
-    def backward(self, x):
-        sigmoid_x = 1 / (1 + np.exp(-x))
-        return sigmoid_x + x * sigmoid_x * (1 - sigmoid_x)
 
 
 # Factory for creating activation instances

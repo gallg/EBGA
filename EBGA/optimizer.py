@@ -43,6 +43,8 @@ class BaseEvoOptimizer:
             self.loss_scale_decay * self.loss_scale +
             (1 - self.loss_scale_decay) * np.mean(np.abs(losses))
         )
+        # Floor to prevent adaptive LR from diverging on near-perfect fit
+        self.loss_scale = max(self.loss_scale, 1e-8)
     
     def _clip_parameters(self):
         """Clip parameters to bounds (to be implemented by subclasses)."""
@@ -195,11 +197,10 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         self.velocity = np.zeros(self.param_dim) if self.momentum > 0 else None
     
     def _clip_parameters(self):
-        """Clip mu and sigma to bounds."""
+        """Clip mu to parameter bounds if set."""
         if self.bounds is not None:
             lower, upper = self.bounds
             self.mu = np.clip(self.mu, lower, upper)
-            self.sigma = np.clip(self.sigma, 0, np.inf)
     
     def _apply_trust_region(self, update):
         """Apply trust region constraint to update vector."""
@@ -218,6 +219,15 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         
         Samples multiple candidates, evaluates them, and performs natural
         gradient updates on mu and sigma.
+        
+        For a Gaussian N(mu, sigma^2 I) with diagonal covariance, the natural
+        gradients (using the canonical parameterization) are:
+        
+          d(mu)  = sigma * E[z * f_centered]    (natural gradient for mean)
+          d(sigma) = E[(z^2 - 1) * f_centered]  (natural gradient for log-sigma)
+        
+        where z ~ N(0,I) is the standardized noise and f_centered are the
+        mean-centered losses.
         """
         noise = self.rng.randn(self.calibration_size, self.param_dim)
         perturbed = self.mu + self.sigma * noise
@@ -227,9 +237,17 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         
         self._update_loss_scale(losses)
         
-        # Natural gradient update for Gaussian distribution
-        grad_mu = np.mean(losses[:, None] * noise, axis=0)
-        grad_sigma = np.mean(losses[:, None] * (noise**2 - 1), axis=0)
+        # Center losses for variance reduction (standard REINFORCE baseline)
+        losses_centered = losses - np.mean(losses)
+        
+        # Natural gradient for mean: sigma * E[z * f_centered]
+        # The sigma factor arises from the inverse Fisher information for the
+        # mean parameter of a Gaussian: F_mu^{-1} = sigma^2, and the score
+        # is z/sigma, so F^{-1} * grad = sigma^2 * E[z/sigma * f] = sigma * E[z * f]
+        grad_mu = self.sigma * np.mean(losses_centered[:, None] * noise, axis=0)
+        
+        # Natural gradient for log-sigma: E[(z^2 - 1) * f_centered]
+        grad_sigma = np.mean(losses_centered[:, None] * (noise**2 - 1), axis=0)
         
         # Sigma regularization: add term to encourage larger sigma (prevents regression to mean)
         # Gradient of -log(sigma) w.r.t. sigma is +1/sigma, scaled by sigma_regularization strength
@@ -291,11 +309,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         normalized_improvement = absolute_improvement / (self.loss_scale + eps)
         update_strength = 1 + self.credit_factor * np.tanh(normalized_improvement)
         
-        # Update loss scale estimate (exponential moving average)
-        # Use absolute value for consistency (losses are always positive for MSE/MAE)
-        avg_loss = (loss1 + loss2) / 2
-        self._update_loss_scale(np.array([avg_loss]))
-        
         # Parameter-specific adaptation
         winner_diff = winner - self.mu
         loser_diff = loser - self.mu
@@ -327,7 +340,7 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         self.sigma *= np.exp(sigma_update)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
         
-        return avg_loss
+        return (loss1 + loss2) / 2
     
     def get_parameters(self):
         """Return the current mean parameters."""

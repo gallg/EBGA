@@ -1,6 +1,6 @@
 from EBGA.models import EBGARegressor, EBGAClassifier
 from EBGA.nn import Sequential
-from EBGA.layers import Linear, Flatten
+from EBGA.layers import Linear, Flatten, Layer
 from EBGA.dataset import Dataset
 from EBGA.activations import (
     Activation, ReLU, Sigmoid, Tanh, Linear, Softmax,
@@ -15,7 +15,7 @@ from EBGA.losses import (
 from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer, OptimizationResult
 from EBGA.utils import save_model, load_model, save_network, load_network
 
-__version__ = "0.1.2"
+__version__ = "0.1.5"
 
 __all__ = [
     # Models

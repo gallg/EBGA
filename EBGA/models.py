@@ -34,36 +34,13 @@ def _create_optimizer(optimizer_class, param_dim, optimizer_config):
 
 
 
-def _create_stateless_loss_func(network, loss_func):
-    """
-    Create a stateless loss function that prevents network state pollution.
-    
-    This function wraps the given loss function to ensure the network state
-    is preserved after each loss evaluation, preventing side effects during optimization.
-    
-    Args:
-        network: Sequential network instance
-        loss_func: The base loss function to wrap (takes params, returns loss)
-        
-    Returns:
-        function: Stateless loss function
-    """
-    def stateless_loss_func(params):
-        current = network.get_all_parameters()
-        network.set_all_parameters(params)
-        loss = loss_func(params)
-        network.set_all_parameters(current)
-        return loss
-    return stateless_loss_func
-
-
-def _run_optimizer_training(optimizer, stateless_loss_func, max_iterations, early_stopping, patience):
+def _run_optimizer_training(optimizer, loss_func, max_iterations, early_stopping, patience):
     """
     Run the optimizer training loop with early stopping support.
     
     Args:
         optimizer: The optimizer instance to train
-        stateless_loss_func: Stateless loss function for evaluation
+        loss_func: Loss function for evaluation
         max_iterations: Maximum number of iterations
         early_stopping: Whether to use early stopping
         patience: Patience for early stopping
@@ -75,10 +52,10 @@ def _run_optimizer_training(optimizer, stateless_loss_func, max_iterations, earl
     patience_counter = 0
     
     for iteration in range(max_iterations):
-        loss = optimizer.step(stateless_loss_func, iteration=iteration)
+        loss = optimizer.step(loss_func, iteration=iteration)
         
         if early_stopping:
-            current_loss = stateless_loss_func(optimizer.get_parameters())
+            current_loss = loss_func(optimizer.get_parameters())
             if current_loss < best_loss:
                 best_loss = current_loss
                 patience_counter = 0
@@ -119,12 +96,9 @@ def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_
     current_params = network.get_all_parameters()
     final_optimizer.initialize(current_params)
     
-    # Create stateless loss function to prevent state pollution
-    stateless_loss_func = _create_stateless_loss_func(network, loss_func)
-    
     # Train all layers together
     _run_optimizer_training(
-        final_optimizer, stateless_loss_func, max_iterations, early_stopping, patience
+        final_optimizer, loss_func, max_iterations, early_stopping, patience
     )
     
     return final_optimizer
@@ -132,13 +106,13 @@ def _train_all_layers_together(network, optimizer_class, optimizer_config, loss_
 
 class BaseModel(BaseEstimator):
     
-    def __init__(self, layers=None,
-                 lr_mu=0.05, lr_sigma=0.005, sigma_min=0.001, sigma_max=1.0,
-                 calibration_size=20, calibration_interval=25, credit_factor=2.0,
-                 sigma_regularization=0.0, max_iter=500, early_stopping=True, 
-                 patience=20, random_state=None, layer_patience=50,
-                 use_layerwise=False, optimizer=CompactEvoOptimizer,
-                 momentum=0.5, trust_region_radius=None, batch_size=None):
+    def __init__(self, layers,
+                 lr_mu, lr_sigma, sigma_min, sigma_max,
+                 calibration_size, calibration_interval, credit_factor,
+                 sigma_regularization, max_iter, early_stopping, 
+                 patience, random_state, layer_patience,
+                 use_layerwise, optimizer,
+                 momentum, trust_region_radius, batch_size):
         
         # Store hyperparameters
         self.layers = layers
@@ -405,7 +379,7 @@ class BaseModel(BaseEstimator):
                 if layer_idx < n_layers - 1:
                     temp_param_count = partial_network.layers[-1].parameter_count()
                     partial_params.append(
-                        np.random.randn(temp_param_count) * 0.01
+                        self._random_state.randn(temp_param_count) * 0.01
                     )
                 
                 partial_network.set_all_parameters(np.concatenate(partial_params))
@@ -429,11 +403,13 @@ class BaseModel(BaseEstimator):
                     X_batch, y_batch = batches[idx]
                     batch_index[0] += 1
                     
+                    current = partial_network.get_all_parameters()
                     partial_network.set_all_parameters(params)
                     y_pred = partial_network.forward(X_batch)
                     if partial_network.output_size == 1:
                         y_pred = y_pred.flatten()
                     loss = self.loss_(y_pred, y_batch)
+                    partial_network.set_all_parameters(current)
                     # Add parameter clipping penalty for numerical stability
                     if np.any(np.abs(params) > 1e5):
                         return float('inf')
@@ -441,11 +417,13 @@ class BaseModel(BaseEstimator):
             else:
                 # Without batching: use full dataset
                 def partial_loss(params):
+                    current = partial_network.get_all_parameters()
                     partial_network.set_all_parameters(params)
                     y_pred = partial_network.forward(X)
                     if partial_network.output_size == 1:
                         y_pred = y_pred.flatten()
                     loss = self.loss_(y_pred, y)
+                    partial_network.set_all_parameters(current)
                     # Add parameter clipping penalty for numerical stability
                     if np.any(np.abs(params) > 1e5):
                         return float('inf')
@@ -453,6 +431,8 @@ class BaseModel(BaseEstimator):
             
             # Train partial network
             partial_optimizer.initialize()
+            # Each layer gets max_iter // n_layers iterations.
+            # Total for layer-wise pretraining: n_layers * (max_iter // n_layers) ~ max_iter.
             layer_iterations = self.max_iter // n_layers
             
             for iteration in range(layer_iterations):
@@ -472,6 +452,9 @@ class BaseModel(BaseEstimator):
             self.network_.set_all_parameters(main_params)
         
         # Phase 2: Fine-tuning all layers together
+        # Fine-tuning uses max_iter // 2 additional iterations.
+        # Total for layer-wise mode: ~1.5 * max_iter (pretraining + fine-tuning).
+        # Direct training uses exactly max_iter iterations for the same setting.
         final_iterations = self.max_iter // 2
         final_optimizer = _train_all_layers_together(
             network=self.network_,
@@ -515,16 +498,13 @@ class BaseModel(BaseEstimator):
             optimizer_config=optimizer_config
         )
         
-        # Create stateless loss function to prevent state pollution
-        stateless_loss_func = _create_stateless_loss_func(self.network_, loss_func)
-        
         # Initialize optimizer
         current_params = self.network_.get_all_parameters()
         final_optimizer.initialize(current_params)
         
         # Train
         _run_optimizer_training(
-            final_optimizer, stateless_loss_func, self.max_iter, self.early_stopping, self.patience
+            final_optimizer, loss_func, self.max_iter, self.early_stopping, self.patience
         )
         
         # Set final parameters
@@ -536,6 +516,9 @@ class BaseModel(BaseEstimator):
         Create the default loss function for training.
         Override this method in subclasses for custom loss calculation.
         
+        The returned function is stateless: it saves the current network state,
+        evaluates the loss on the given parameters, then restores the original state.
+        
         Args:
             X: Input data
             y: Target data
@@ -544,11 +527,13 @@ class BaseModel(BaseEstimator):
             function: Loss function that takes parameters and returns loss value
         """
         def loss_func(params):
+            current = self.network_.get_all_parameters()
             self.network_.set_all_parameters(params)
             y_pred = self.network_.forward(X)
             if self.network_.output_size == 1:
                 y_pred = y_pred.flatten()
             loss = self.loss_(y_pred, y)
+            self.network_.set_all_parameters(current)
             # Add parameter clipping penalty for numerical stability
             if np.any(np.abs(params) > 1e5):
                 return float('inf')
@@ -601,11 +586,13 @@ class BaseModel(BaseEstimator):
         """
         # Base loss function for the main network
         def base_loss(params, X_batch, y_batch):
+            current = self.network_.get_all_parameters()
             self.network_.set_all_parameters(params)
             y_pred = self.network_.forward(X_batch)
             if self.network_.output_size == 1:
                 y_pred = y_pred.flatten()
             loss = self.loss_(y_pred, y_batch)
+            self.network_.set_all_parameters(current)
             # Add parameter clipping penalty for numerical stability
             if np.any(np.abs(params) > 1e5):
                 return float('inf')
@@ -676,11 +663,7 @@ class EBGARegressor(BaseModel, RegressorMixin):
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
                  momentum=0.9, trust_region_radius=0.1, batch_size=None):
         
-        # Store new parameters
-        self.layer_patience = layer_patience
         self.normalize_output = normalize_output
-        self.use_layerwise = use_layerwise
-        self.optimizer = optimizer
         
         super().__init__(
             layers=layers,
@@ -891,11 +874,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                  random_state=None, use_layerwise=False, optimizer=CompactEvoOptimizer,
                  momentum=0.5, trust_region_radius=None, batch_size=None):
         
-        # Store new parameters
         self.n_classes = n_classes
-        self.layer_patience = layer_patience
-        self.use_layerwise = use_layerwise
-        self.optimizer = optimizer
         
         super().__init__(
             layers=layers,
@@ -978,9 +957,11 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         """
         # Base loss function for classification
         def class_base_loss(params, X_batch, y_batch):
+            current = self.network_.get_all_parameters()
             self.network_.set_all_parameters(params)
             y_pred = self.network_.forward(X_batch)
             loss = self.loss_(y_pred, y_batch)
+            self.network_.set_all_parameters(current)
             # Add parameter clipping penalty for numerical stability
             if np.any(np.abs(params) > 1e5):
                 return float('inf')
@@ -1080,15 +1061,15 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                 return (output >= 0.5).astype(int).flatten()
             elif self.n_classes_ == 2 and output.shape[1] == 2:
                 # Two output neurons with sigmoid for binary classification
-                # This is non-standard but we'll handle it by using the first neuron
+                # This is non-standard but we'll handle it by using argmax
                 import warnings
                 warnings.warn(
                     f"Sigmoid activation with 2 output neurons for {self.n_classes_}-class classification is non-standard. "
                     f"Consider using (1, 'sigmoid') for binary or ({self.n_classes_}, 'softmax') for multi-class. "
-                    f"Using first neuron with 0.5 threshold.",
+                    f"Falling back to argmax.",
                     UserWarning
                 )
-                return (output[:, 0] >= 0.5).astype(int).flatten()
+                return np.argmax(output, axis=1)
             else:
                 # Multi-class with sigmoid: warn and fall back to argmax
                 import warnings

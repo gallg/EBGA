@@ -43,7 +43,17 @@ def save_model(model, filepath):
         'credit_factor': float(model.credit_factor),
         'sigma_regularization': float(model.sigma_regularization),
         'max_iter': int(model.max_iter),
+        'early_stopping': bool(model.early_stopping),
+        'patience': int(model.patience),
+        'layer_patience': int(model.layer_patience),
+        'momentum': float(model.momentum),
+        'use_layerwise': bool(model.use_layerwise),
     }
+    
+    if model.trust_region_radius is not None:
+        state['trust_region_radius'] = float(model.trust_region_radius)
+    if model.batch_size is not None:
+        state['batch_size'] = int(model.batch_size)
     
     if hasattr(model, 'y_min_') and model.y_min_ is not None:
         state['y_min'] = float(model.y_min_)
@@ -153,10 +163,14 @@ def load_model(filepath):
     model.network_ = network
     model.optimizer_ = optimizer
     
-    # Initialize attributes that might be needed by the model
-    model.early_stopping = True  # Default
-    model.patience = 20  # Default
-    model.layer_patience = 50  # Default
+    # Restore all hyperparameters from saved state
+    model.early_stopping = bool(_to_python_scalar(state.get('early_stopping', True)))
+    model.patience = int(_to_python_scalar(state.get('patience', 20)))
+    model.layer_patience = int(_to_python_scalar(state.get('layer_patience', 50)))
+    model.momentum = float(_to_python_scalar(state.get('momentum', 0.5)))
+    model.use_layerwise = bool(_to_python_scalar(state.get('use_layerwise', False)))
+    model.trust_region_radius = _to_python_scalar(state.get('trust_region_radius'))
+    model.batch_size = _to_python_scalar(state.get('batch_size'))
     model.random_state = None
     model._random_state = None
     model.label_binarizer_ = None
