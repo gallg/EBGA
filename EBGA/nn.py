@@ -26,7 +26,13 @@ class Sequential:
 
         if scale_aware is not None:
             all_params = self.get_all_parameters()
-            all_params[-1] = float(np.mean(scale_aware))
+            # Set the bias of the last layer to the mean of the target.
+            # For multi-output layers, set all bias elements.
+            last_layer = self.layers[-1]
+            if last_layer.parameter_count() > 0:
+                n_bias = last_layer.output_size if hasattr(last_layer, 'use_bias') and last_layer.use_bias else 0
+                if n_bias > 0:
+                    all_params[-n_bias:] = float(np.mean(scale_aware))
             self.set_all_parameters(all_params)
     
     def forward(self, x):
@@ -68,8 +74,3 @@ class Sequential:
     
     def __repr__(self):
         return f"Sequential({[type(l).__name__ for l in self.layers]})"
-    
-    def set_training(self, training):
-        for layer in self.layers:
-            if hasattr(layer, 'set_training'):
-                layer.set_training(training)

@@ -63,9 +63,8 @@ def run_test(random_state=42):
         'lr_mu': [0.001, 0.0025, 0.005, 0.01],
         'lr_sigma': [0.0001, 0.00025, 0.0005, 0.001],
         'momentum': [0.0, 0.1, 0.3, 0.5, 0.7],
-        'max_iter': [1000, 2000, 3000],
+        'max_iter': [3000, 5000, 10000],
         'calibration_size': [10, 20, 30],
-        'calibration_interval': [25, 50, 100],
     }
     
     # Setup outer CV
@@ -91,10 +90,10 @@ def run_test(random_state=42):
         model = EBGARegressor(
             layers=[(3, 'sigmoid'), (1, 'linear')],
             normalize_output=True,
+            batch_size=32,
             loss='mse',
             sigma_min=0.001,
             sigma_max=1.0,
-            layer_patience=30,
             early_stopping=False,
             patience=100,
             random_state=random_state + outer_fold * 100

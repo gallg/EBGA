@@ -66,7 +66,6 @@ def run_test(random_state=42):
         'momentum': [0.0, 0.1, 0.3, 0.5, 0.7],
         'max_iter': [1000, 2000, 5000],
         'calibration_size': [10, 20, 30],
-        'calibration_interval': [25, 50, 100],
     }
     
     # Setup outer CV
@@ -94,7 +93,6 @@ def run_test(random_state=42):
             n_classes=n_classes,
             sigma_min=0.001,
             sigma_max=1.0,
-            credit_factor=2.0,
             early_stopping=False,
             patience=100,
             random_state=random_state + outer_fold * 100

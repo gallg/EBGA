@@ -4,7 +4,7 @@
 
 #### EBGARegressor
 
-Scikit-learn compatible regressor for neural network training with natural gradients.
+Scikit-learn compatible regressor for evolutionary neural network training.
 
 **Notes:**<br>
 - Uses explicit layer specification via `layers` parameter<br>
@@ -19,18 +19,14 @@ model = EBGARegressor(
     loss='mae',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,
-    sigma_regularization=0.0,
     max_iter=10000,
     lr_mu=0.03,
     lr_sigma=0.03,
     sigma_min=0.001,
     sigma_max=1.0,
-    calibration_size=30,
-    calibration_interval=50,
-    credit_factor=2.0,
+    calibration_size=10,
     early_stopping=True,
     patience=100,
-    layer_patience=50,
     normalize_output=False,
     random_state=None
 )
@@ -45,18 +41,14 @@ score = model.score(X, y)  # Returns R²
 - `loss`: Loss function ('mse' or 'mae')<br>
 - `optimizer`: Optimizer class (currently only CompactEvoOptimizer is supported)<br>
 - `use_layerwise`: If True, use layer-wise training; if False, train all layers together<br>
-- `sigma_regularization`: Strength of sigma diversity regularization<br>
 - `max_iter`: Maximum training iterations<br>
-- `lr_mu`: Learning rate for mean parameters<br>
-- `lr_sigma`: Learning rate for sigma parameters<br>
+- `lr_mu`: Temperature for softmax weighting. Lower values make selection more greedy, higher values more uniform<br>
+- `lr_sigma`: Learning rate for sigma adaptation<br>
 - `sigma_min`: Minimum sigma value<br>
 - `sigma_max`: Maximum sigma value<br>
-- `calibration_size`: Population size for calibration<br>
-- `calibration_interval`: Frequency of population calibration<br>
-- `credit_factor`: Strength of credit assignment<br>
+- `calibration_size`: Population size per step (number of candidates sampled)<br>
 - `early_stopping`: Enable early stopping<br>
 - `patience`: Patience for early stopping<br>
-- `layer_patience`: Patience for layer-wise plateau detection<br>
 - `normalize_output`: Normalize output to 0-1 range<br>
 - `batch_size`: Batch size for mini-batch training. If `None`, uses the full dataset; last batch is merged with the previous one if too small<br>
 - `momentum`: Momentum coefficient for velocity-based parameter updates<br>
@@ -67,7 +59,7 @@ score = model.score(X, y)  # Returns R²
 
 #### EBGAClassifier
 
-Scikit-learn compatible classifier for neural network training with natural gradients.
+Scikit-learn compatible classifier for evolutionary neural network training.
 
 ```python
 from EBGA.models import EBGAClassifier
@@ -78,18 +70,14 @@ model = EBGAClassifier(
     loss='cross_entropy',
     optimizer=CompactEvoOptimizer,
     use_layerwise=False,
-    sigma_regularization=0.0,
     max_iter=500,
     lr_mu=0.05,
     lr_sigma=0.005,
     sigma_min=0.001,
     sigma_max=1.0,
-    calibration_size=20,
-    calibration_interval=50,
-    credit_factor=2.0,
+    calibration_size=10,
     early_stopping=True,
     patience=20,
-    layer_patience=50,
     random_state=None
 )
 
@@ -121,7 +109,7 @@ Container for sequential layers.
 
 ```python
 from EBGA.nn import Sequential
-from EBGA.layers import Linear
+from EBGA.layers import Dense
 
 network = Sequential(layer1, layer2, ..., layerN)
 network.initialize(input_size)
@@ -135,14 +123,14 @@ count = network.parameter_count()
 
 ## Layers
 
-#### Linear
+#### Dense
 
 Fully connected layer.
 
 ```python
-from EBGA.layers import Linear
+from EBGA.layers import Dense
 
-layer = Linear(output_size, activation=None, use_bias=True)
+layer = Dense(output_size, activation=None, use_bias=True)
 ```
 
 **Parameters:**<br>
@@ -230,7 +218,7 @@ loss_fn = get_loss('mse')
 
 #### CompactEvoOptimizer
 
-Distribution-based evolutionary optimizer with a single distribution per parameter.
+Distribution-based evolutionary optimizer using softmax-weighted recombination (NES-style).
 
 ```python
 from EBGA.optimizer import CompactEvoOptimizer
@@ -241,10 +229,7 @@ optimizer = CompactEvoOptimizer(
     lr_sigma=0.005,
     sigma_min=0.001,
     sigma_max=1.0,
-    calibration_size=20,
-    calibration_interval=50,
-    credit_factor=2.0,
-    sigma_regularization=0.0,
+    calibration_size=10,
     momentum=0.5,
     trust_region_radius=None,
     random_state=None
@@ -257,21 +242,18 @@ params = optimizer.get_parameters()
 
 **Parameters:**<br>
 - `param_dim`: Dimensionality of parameter space<br>
-- `lr_mu`: Initial learning rate for mean parameters (adaptive during training)<br>
-- `lr_sigma`: Initial learning rate for sigma parameters (adaptive during training)<br>
+- `lr_mu`: Temperature for softmax weighting. Lower values make selection more greedy, higher values more uniform<br>
+- `lr_sigma`: Learning rate for sigma adaptation<br>
 - `sigma_min`: Minimum sigma value<br>
 - `sigma_max`: Maximum sigma value<br>
-- `calibration_size`: Population size for calibration<br>
-- `calibration_interval`: Frequency of population calibration (default: 50)<br>
-- `credit_factor`: Strength of credit assignment<br>
-- `sigma_regularization`: Strength of sigma regularization<br>
+- `calibration_size`: Population size per step (number of candidates sampled)<br>
 - `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)<br>
 - `trust_region_radius`: Maximum allowed update norm (L2) per step for stability<br>
 - `random_state`: Random seed<br>
 
 **Methods:**<br>
 - `initialize(initial_params)`: Initialize optimizer with parameters<br>
-- `step(loss_func, iteration)`: Perform one optimization step<br>
+- `step(loss_func, iteration)`: Perform one optimization step (samples population, evaluates, softmax-weighted recombination)<br>
 - `get_parameters()`: Get current mean parameters<br>
 
 **Attributes:**<br>
@@ -322,7 +304,7 @@ save_model(model, 'model.npz')
 loaded_model = load_model('model.npz')
 
 # Save and load custom networks
-network = Sequential(Linear(10, activation='relu'), Linear(1))
+network = Sequential(Dense(10, activation='relu'), Dense(1))
 network.initialize(input_size=5)
 optimizer = CompactEvoOptimizer(param_dim=network.parameter_count())
 # ... train ...

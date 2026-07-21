@@ -13,7 +13,7 @@ def _to_python_scalar(val):
 def save_model(model, filepath):
     """
     Save a trained EBGA model to a file.
-    
+
     Args:
         model: Trained EBGARegressor or EBGAClassifier instance
         filepath: Path to save the model (should end with .npz)
@@ -24,10 +24,10 @@ def save_model(model, filepath):
         if isinstance(act, str):
             return act
         return type(act).__name__.lower()
-    
+
     network_params = model.network_.get_all_parameters()
     optimizer_state = model.optimizer_.state_dict()
-    
+
     state = {
         'type': type(model).__name__,
         'network_params': network_params,
@@ -39,47 +39,53 @@ def save_model(model, filepath):
         'sigma_min': float(model.sigma_min),
         'sigma_max': float(model.sigma_max),
         'calibration_size': int(model.calibration_size),
-        'calibration_interval': int(model.calibration_interval),
-        'credit_factor': float(model.credit_factor),
-        'sigma_regularization': float(model.sigma_regularization),
         'max_iter': int(model.max_iter),
+        'early_stopping': bool(model.early_stopping),
+        'patience': int(model.patience),
+        'momentum': float(model.momentum),
+        'use_layerwise': bool(model.use_layerwise),
     }
-    
+
+    if model.trust_region_radius is not None:
+        state['trust_region_radius'] = float(model.trust_region_radius)
+    if model.batch_size is not None:
+        state['batch_size'] = int(model.batch_size)
+
     if hasattr(model, 'y_min_') and model.y_min_ is not None:
         state['y_min'] = float(model.y_min_)
         state['y_max'] = float(model.y_max_)
         state['normalize_output'] = bool(model.normalize_output)
-    
+
     if hasattr(model, 'n_classes_') and model.n_classes_ is not None:
         state['n_classes'] = int(model.n_classes_)
-    
+
     if hasattr(model, 'label_binarizer_') and model.label_binarizer_ is not None:
         state['classes'] = _to_python_scalar(model.label_binarizer_.classes_)
-    
+
     np.savez(filepath, **state)
 
 
 def load_model(filepath):
     """
     Load a saved EBGA model from a file.
-    
+
     Args:
         filepath: Path to the saved model file
-        
+
     Returns:
         model: Loaded EBGARegressor or EBGAClassifier instance
     """
     from EBGA.nn import Sequential
-    from EBGA.layers import Linear
+    from EBGA.layers import Dense
     from EBGA.activations import get_activation
     from EBGA.optimizer import CompactEvoOptimizer
     from sklearn.preprocessing import LabelBinarizer
-    
+
     state = np.load(filepath, allow_pickle=True)
-    
+
     model_type = _to_python_scalar(state['type'])
     n_features = int(_to_python_scalar(state['n_features']))
-    
+
     # Handle layers
     layers_raw = _to_python_scalar(state['layers'])
     layers_config = []
@@ -96,24 +102,23 @@ def load_model(filepath):
                 layers_config.append((size, act))
     if not layers_config:
         layers_config = []
-    
-    # Get output_activation if available (for backward compatibility)
+
     output_activation = _to_python_scalar(state.get('output_activation', 'linear'))
-    
+
     # Build network
     network_layers = []
     n_layers = len(layers_config)
-    
+
     for i, (size, activation) in enumerate(layers_config):
         act = output_activation if (i == n_layers - 1 and activation is None) else activation
         if act is not None and not isinstance(act, str):
             act = str(act)
-        network_layers.append(Linear(size, activation=act if act else None))
-    
+        network_layers.append(Dense(size, activation=act if act else None))
+
     network = Sequential(*network_layers)
     network.initialize(n_features)
     network.set_all_parameters(state['network_params'])
-    
+
     # Reconstruct optimizer
     optimizer = CompactEvoOptimizer(
         param_dim=network.parameter_count(),
@@ -122,15 +127,12 @@ def load_model(filepath):
         sigma_min=float(_to_python_scalar(state['sigma_min'])),
         sigma_max=float(_to_python_scalar(state['sigma_max'])),
         calibration_size=int(_to_python_scalar(state['calibration_size'])),
-        calibration_interval=int(_to_python_scalar(state['calibration_interval'])),
-        credit_factor=float(_to_python_scalar(state['credit_factor'])),
-        sigma_regularization=float(_to_python_scalar(state['sigma_regularization'])),
     )
     opt_state = state['optimizer_state']
     if isinstance(opt_state, np.ndarray) and opt_state.ndim == 0:
         opt_state = opt_state.item()
     optimizer.load_state_dict(opt_state)
-    
+
     # Create model
     if model_type == 'EBGARegressor':
         from EBGA.models import EBGARegressor
@@ -138,54 +140,50 @@ def load_model(filepath):
     else:
         from EBGA.models import EBGAClassifier
         model = EBGAClassifier.__new__(EBGAClassifier)
-    
+
     model.layers = layers_config
     model.lr_mu = float(_to_python_scalar(state['lr_mu']))
     model.lr_sigma = float(_to_python_scalar(state['lr_sigma']))
     model.sigma_min = float(_to_python_scalar(state['sigma_min']))
     model.sigma_max = float(_to_python_scalar(state['sigma_max']))
     model.calibration_size = int(_to_python_scalar(state['calibration_size']))
-    model.calibration_interval = int(_to_python_scalar(state['calibration_interval']))
-    model.credit_factor = float(_to_python_scalar(state['credit_factor']))
-    model.sigma_regularization = float(_to_python_scalar(state['sigma_regularization']))
     model.max_iter = int(_to_python_scalar(state['max_iter']))
     model.n_features_ = n_features
     model.network_ = network
     model.optimizer_ = optimizer
-    
-    # Initialize attributes that might be needed by the model
-    model.early_stopping = True  # Default
-    model.patience = 20  # Default
-    model.layer_patience = 50  # Default
+
+    model.early_stopping = bool(_to_python_scalar(state.get('early_stopping', True)))
+    model.patience = int(_to_python_scalar(state.get('patience', 20)))
+    model.momentum = float(_to_python_scalar(state.get('momentum', 0.5)))
+    model.use_layerwise = bool(_to_python_scalar(state.get('use_layerwise', False)))
+    model.trust_region_radius = _to_python_scalar(state.get('trust_region_radius'))
+    model.batch_size = _to_python_scalar(state.get('batch_size'))
     model.random_state = None
     model._random_state = None
     model.label_binarizer_ = None
     model.n_classes_ = None
-    
-    # Initialize normalize_output for regressor
+
     model.normalize_output = False
-    
+
     if 'y_min' in state:
         model.y_min_ = float(_to_python_scalar(state['y_min']))
         model.y_max_ = float(_to_python_scalar(state['y_max']))
         model.normalize_output = bool(_to_python_scalar(state.get('normalize_output', False)))
-    
+
     if 'n_classes' in state:
         model.n_classes_ = int(_to_python_scalar(state['n_classes']))
-    
+
     if 'classes' in state:
         model.label_binarizer_ = LabelBinarizer()
         model.label_binarizer_.classes_ = _to_python_scalar(state['classes'])
-    
-    model.network_.set_training(False)
-    
+
     return model
 
 
 def save_network(network, optimizer, filepath):
     """
     Save a custom network and its optimizer to a file.
-    
+
     Args:
         network: Sequential network instance
         optimizer: CompactEvoOptimizer instance
@@ -203,7 +201,7 @@ def save_network(network, optimizer, filepath):
             act = layer.activation
             config['activation'] = None if act is None else (act if isinstance(act, str) else type(act).__name__.lower())
         layer_configs.append(config)
-    
+
     state = {
         'type': 'Sequential',
         'input_size': int(network.input_size),
@@ -215,57 +213,53 @@ def save_network(network, optimizer, filepath):
             'sigma_min': float(optimizer.sigma_min),
             'sigma_max': float(optimizer.sigma_max),
             'calibration_size': int(optimizer.calibration_size),
-            'calibration_interval': int(optimizer.calibration_interval),
-            'credit_factor': float(optimizer.credit_factor),
-            'sigma_regularization': float(optimizer.sigma_regularization),
         },
         'layer_configs': layer_configs,
     }
-    
+
     np.savez(filepath, **state)
 
 
 def load_network(filepath):
     """
     Load a saved custom network and optimizer from a file.
-    
+
     Args:
         filepath: Path to the saved network file
-        
+
     Returns:
         network: Loaded Sequential network instance
         optimizer: Loaded CompactEvoOptimizer instance
     """
     state = np.load(filepath, allow_pickle=True)
-    
+
     from EBGA.nn import Sequential
-    from EBGA.layers import Linear, Flatten
+    from EBGA.layers import Dense, Flatten
     from EBGA.optimizer import CompactEvoOptimizer
     from EBGA.activations import get_activation
-    
+
     layers = []
     for config in _to_python_scalar(state['layer_configs']):
         layer_type = _to_python_scalar(config['type'])
-        if layer_type == 'Linear':
+        if layer_type in ('Dense', 'Linear'):
             act = _to_python_scalar(config.get('activation'))
             if act is not None and not isinstance(act, str):
                 act = str(act)
-            layer = Linear(
+            layer = Dense(
                 output_size=int(_to_python_scalar(config['output_size'])),
                 activation=act if act else None,
                 use_bias=bool(_to_python_scalar(config.get('use_bias', True)))
             )
         elif layer_type == 'Flatten':
             layer = Flatten()
-
         else:
             raise ValueError(f"Unknown layer type: {layer_type}")
         layers.append(layer)
-    
+
     network = Sequential(*layers)
     network.initialize(int(_to_python_scalar(state['input_size'])))
     network.set_all_parameters(state['network_params'])
-    
+
     opt_params = _to_python_scalar(state['optimizer_params'])
     optimizer = CompactEvoOptimizer(
         param_dim=network.parameter_count(),
@@ -274,13 +268,10 @@ def load_network(filepath):
         sigma_min=float(opt_params['sigma_min']),
         sigma_max=float(opt_params['sigma_max']),
         calibration_size=int(opt_params['calibration_size']),
-        calibration_interval=int(opt_params['calibration_interval']),
-        credit_factor=float(opt_params['credit_factor']),
-        sigma_regularization=float(opt_params['sigma_regularization']),
     )
     opt_state = state['optimizer_state']
     if isinstance(opt_state, np.ndarray) and opt_state.ndim == 0:
         opt_state = opt_state.item()
     optimizer.load_state_dict(opt_state)
-    
+
     return network, optimizer
