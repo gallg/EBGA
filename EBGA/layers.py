@@ -25,7 +25,7 @@ class Layer:
         raise NotImplementedError
 
 
-class Linear(Layer):
+class Dense(Layer):
     
     def __init__(self, output_size, activation=None, use_bias=True):
         super().__init__()
@@ -103,8 +103,8 @@ class Flatten(Layer):
 
 
 # Factory functions
-def linear(output_size, activation=None, use_bias=True):
-    return Linear(output_size, activation=activation, use_bias=use_bias)
+def dense(output_size, activation=None, use_bias=True):
+    return Dense(output_size, activation=activation, use_bias=use_bias)
 
 
 def flatten():
