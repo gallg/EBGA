@@ -249,16 +249,63 @@ params = optimizer.get_parameters()
 - `calibration_size`: Population size per step (number of candidates sampled)<br>
 - `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)<br>
 - `trust_region_radius`: Maximum allowed update norm (L2) per step for stability<br>
+- `n_jobs`: Number of parallel workers for candidate evaluation (pass-through, used with `ParallelEvaluator`)<br>
 - `random_state`: Random seed<br>
 
 **Methods:**<br>
 - `initialize(initial_params)`: Initialize optimizer with parameters<br>
-- `step(loss_func, iteration)`: Perform one optimization step (samples population, evaluates, softmax-weighted recombination)<br>
+- `step(loss_func=None, iteration=None, evaluate_map=None)`: Perform one optimization step. When `evaluate_map` is provided, all candidates are evaluated in parallel via that callable. Otherwise, candidates are evaluated sequentially via `loss_func`.<br>
 - `get_parameters()`: Get current mean parameters<br>
 
 **Attributes:**<br>
 - `mu`: Current mean parameters<br>
 - `sigma`: Current standard deviation parameters<br>
+
+---
+
+## Parallel
+
+#### ParallelEvaluator
+
+Parallel candidate evaluator for multi-core evolutionary optimization.
+
+Each worker holds a full copy of the network and dataset. Candidates are distributed across workers via `pool.map` and evaluated in parallel. All candidates within a step are evaluated on the same data (full dataset or same batch), so loss values are directly comparable.
+
+```python
+from EBGA.parallel import ParallelEvaluator
+
+evaluator = ParallelEvaluator(
+    network, X, y,
+    loss='mse',
+    n_jobs=4,
+    batch_size=None,
+    random_state=None
+)
+
+with evaluator:
+    for i in range(1000):
+        optimizer.step(iteration=i, evaluate_map=evaluator.evaluate_map)
+```
+
+**Parameters:**<br>
+- `network`: Sequential network architecture (used as template for workers)<br>
+- `X`: Input features, shape `(n_samples, n_features)`<br>
+- `y`: Target values, shape `(n_samples,)` or `(n_samples, n_outputs)`<br>
+- `loss`: Loss function name (e.g. `'mse'`, `'mae'`, `'cross_entropy'`) or Loss instance<br>
+- `n_jobs`: Number of worker processes (default: 1, disables parallelism)<br>
+- `batch_size`: Mini-batch size per step. If `None`, uses full dataset<br>
+- `random_state`: Seed for worker-local random state<br>
+
+**Properties:**<br>
+- `evaluate_map`: Callable for `optimizer.step(evaluate_map=...)`. Evaluates all candidates in parallel.<br>
+
+**Methods:**<br>
+- `close()`: Shut down the worker pool<br>
+
+**Notes:**<br>
+- Use as a context manager (`with evaluator:`) to ensure proper cleanup<br>
+- BLAS threading is pinned to single-thread per process to prevent oversubscription<br>
+- For out-of-memory datasets, set `batch_size` so each step uses a mini-batch<br>
 
 ---
 

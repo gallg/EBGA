@@ -13,6 +13,7 @@ from EBGA.losses import (
     get_loss, mse_loss, mae_loss, cross_entropy_loss, bce_loss
 )
 from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer
+from EBGA.parallel import ParallelEvaluator
 from EBGA.utils import save_model, load_model, save_network, load_network
 
 __version__ = "0.2.0"
@@ -71,6 +72,9 @@ __all__ = [
     # Optimizers
     'BaseEvoOptimizer',
     'CompactEvoOptimizer',
+    
+    # Parallel
+    'ParallelEvaluator',
     
     # Utils
     'save_model',
