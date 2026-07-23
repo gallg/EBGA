@@ -1,147 +1,136 @@
 #!/usr/bin/env python3
+"""
+Test ParallelEvaluator on California Housing with the same architecture
+and parameters as the existing test, but using the custom nn path.
 
+Supports optional layerwise training.
+"""
+
+import time
 import numpy as np
 from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import KFold, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
-from sklearn.linear_model import LinearRegression
 
-from EBGA.models import EBGARegressor
+from EBGA.nn import Sequential
+from EBGA.layers import Dense
+from EBGA.optimizer import CompactEvoOptimizer
+from EBGA.parallel import ParallelEvaluator
 
 
-def run_test(random_state=42):
-    # Set global random seed for reproducibility
+def run_test(random_state=42, use_layerwise=False):
     np.random.seed(random_state)
-    
+
     print("=" * 70)
-    print("TEST: California Housing Dataset (Regression)")
+    print("TEST: California Housing with ParallelEvaluator (6 jobs)")
+    print(f"      Layerwise: {use_layerwise}")
     print("=" * 70)
-    
+
     # Load data
     housing = fetch_california_housing()
-    X, y = housing.data, housing.target
-    
+    X, y = housing.data.astype(np.float64), housing.target.astype(np.float64)
+
     print(f"\nDataset: California Housing")
-    print(f"Features: {X.shape[1]}, Target range: [{y.min():.2f}, {y.max():.2f}]")
-    
-    # Nested CV for sklearn LinearRegression baseline
-    print("\n" + "-" * 70)
-    print("BASELINE: sklearn LinearRegression with Nested CV")
-    print("-" * 70)
-    
-    n_splits = 5
-    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    print(f"Samples: {X.shape[0]}, Features: {X.shape[1]}")
+
+    # Scale
     scaler = StandardScaler()
-    
-    lr_r2_scores = []
-    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
-        
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        lr_model = LinearRegression()
-        lr_model.fit(X_train_scaled, y_train)
-        lr_y_pred = lr_model.predict(X_test_scaled)
-        lr_r2 = r2_score(y_test, lr_y_pred)
-        lr_r2_scores.append(lr_r2)
-        print(f"  Fold {outer_fold + 1}: R² = {lr_r2:.4f}")
-    
-    avg_lr_r2 = np.mean(lr_r2_scores)
-    std_lr_r2 = np.std(lr_r2_scores)
-    print(f"LinearRegression Nested CV: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
-    
-    # EBGA with RandomizedSearchCV
-    print("\n" + "-" * 70)
-    print("EBGA: Cross-Validation with RandomizedSearchCV")
-    print("-" * 70)
-    
-    # Define parameter distributions for random search
-    param_distributions = {
-        'lr_mu': [0.001, 0.0025, 0.005, 0.01],
-        'lr_sigma': [0.0001, 0.00025, 0.0005, 0.001],
-        'momentum': [0.0, 0.1, 0.3, 0.5, 0.7],
-        'max_iter': [3000, 5000, 10000],
-        'calibration_size': [10, 20, 30],
-    }
-    
-    # Setup outer CV
-    outer_cv = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    
-    # Arrays to store results
-    r2_scores = []
-    best_params_list = []
-    
-    # Nested CV loop with RandomizedSearchCV
-    for outer_fold, (train_idx, test_idx) in enumerate(outer_cv.split(X)):
-        print(f"\nOuter fold {outer_fold + 1}/{n_splits}")
-        
-        # Split data
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
-        
-        # Scale data
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        # Create base model
-        model = EBGARegressor(
-            layers=[(3, 'sigmoid'), (1, 'linear')],
-            normalize_output=True,
-            batch_size=32,
-            loss='mse',
-            sigma_min=0.001,
-            sigma_max=1.0,
-            early_stopping=False,
-            patience=100,
-            random_state=random_state + outer_fold * 100
+    X_scaled = scaler.fit_transform(X)
+
+    # Normalize output (same as EBGARegressor with normalize_output=True)
+    y_min, y_max = np.min(y), np.max(y)
+    y_normalized = (y - y_min) / (y_max - y_min + 1e-8)
+
+    # Build network: same architecture as the test: [(3, 'sigmoid'), (1, 'linear')]
+    net = Sequential(
+        Dense(3, activation='sigmoid'),
+        Dense(1, activation='linear'),
+    )
+    net.initialize(X_scaled.shape[1], scale_aware=y_normalized)
+
+    print(f"Network parameters: {net.parameter_count()}")
+
+    # Use the best params from the existing test as a starting point
+    # (lr_mu=0.005, lr_sigma=0.0005, momentum=0.5, calibration_size=20)
+    opt_config = dict(
+        calibration_size=20,
+        lr_mu=0.005,
+        lr_sigma=0.0005,
+        sigma_min=0.001,
+        sigma_max=1.0,
+        momentum=0.5,
+        trust_region_radius=None,
+        random_state=random_state,
+    )
+
+    overall_start = time.time()
+
+    # Phase 1: Optional layer-wise pretraining
+    if use_layerwise:
+        layer_iters = 500
+        print(f"\nLayer-wise pretraining ({layer_iters} iters per layer)...")
+        net.layerwise_pretrain(
+            X_scaled, y_normalized, loss='mse',
+            layer_iters=layer_iters,
+            optimizer_config=opt_config,
+            n_jobs=6,
+            random_state=random_state,
         )
-        
-        # Inner CV for hyperparameter tuning with RandomizedSearchCV
-        inner_cv = KFold(n_splits=3, shuffle=True, random_state=random_state + outer_fold)
-        
-        search = RandomizedSearchCV(
-            estimator=model,
-            param_distributions=param_distributions,
-            n_iter=5,
-            cv=inner_cv,
-            scoring='r2',
-            n_jobs=None,
-            random_state=random_state + outer_fold * 1000,
-            verbose=0
-        )
-        
-        # Fit search
-        search.fit(X_train_scaled, y_train)
-        
-        # Get best model and parameters
-        best_params = search.best_params_
-        best_params_list.append(best_params)
-        
-        # Predict on test fold
-        y_pred = search.predict(X_test_scaled)
-        
-        # Calculate metrics
-        r2 = r2_score(y_test, y_pred)
-        r2_scores.append(r2)
-        
-        print(f"  Best params: {best_params}")
-        print(f"  R2: {r2:.4f}")
-    
-    # Calculate final nested CV results
-    avg_r2 = np.mean(r2_scores)
-    std_r2 = np.std(r2_scores)
-    
-    print(f"\n{'='*60}")
-    print("FINAL RESULTS - California Housing")
-    print(f"{'='*60}")
-    print(f"sklearn LinearRegression: R² = {avg_lr_r2:.4f} ± {std_lr_r2:.4f}")
-    print(f"EBGA Regressor:         R² = {avg_r2:.4f} ± {std_r2:.4f}")
-    print(f"Best params: {best_params_list[np.argmax(r2_scores)]}")
-    
-    return avg_r2, avg_lr_r2
+
+    # Phase 2: Fine-tune / direct train with parallel evaluator
+    opt = CompactEvoOptimizer(
+        param_dim=net.parameter_count(),
+        **opt_config,
+    )
+    opt.initialize(net.get_all_parameters())
+
+    # Parallel evaluator with 6 jobs, no batching (full shard per worker)
+    evaluator = ParallelEvaluator(
+        net, X_scaled, y_normalized,
+        loss='mse',
+        n_jobs=6,
+        batch_size=None,
+        random_state=random_state,
+    )
+
+    # Train
+    max_iter = 5000
+    phase_label = "Fine-tuning" if use_layerwise else "Direct training"
+    print(f"\n{phase_label} for {max_iter} iterations with batch_size=None, n_jobs=6...")
+    print(f"{'Iter':>6}  {'Loss':>12}  {'Elapsed':>10}")
+    print("-" * 32)
+
+    start = time.time()
+    losses = []
+    with evaluator:
+        for i in range(max_iter):
+            loss = opt.step(iteration=i, evaluate_map=evaluator.evaluate_map)
+            losses.append(loss)
+            if (i + 1) % 500 == 0:
+                elapsed = time.time() - start
+                print(f"{i+1:>6}  {loss:>12.6f}  {elapsed:>8.1f}s")
+
+    total_time = time.time() - overall_start
+    print("-" * 32)
+    print(f"{max_iter:>6}  {losses[-1]:>12.6f}  {total_time:>8.1f}s")
+
+    # Set final parameters
+    net.set_all_parameters(opt.get_parameters())
+
+    # Predict and evaluate
+    y_pred = net.forward(X_scaled)
+    if net.output_size == 1:
+        y_pred = y_pred.flatten()
+
+    # Denormalize
+    y_pred_denorm = y_pred * (y_max - y_min) + y_min
+
+    r2 = r2_score(y, y_pred_denorm)
+    print(f"\nR² score on full dataset: {r2:.4f}")
+    print(f"Total training time: {total_time:.1f}s")
+    print(f"Average time per iteration: {total_time / max_iter * 1000:.2f}ms")
+
+    return r2
 
 
 if __name__ == "__main__":

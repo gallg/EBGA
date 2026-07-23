@@ -15,7 +15,8 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 - **Handles non-differentiable losses** - Works with any loss function
 - **Flexible training modes** - Layer-wise or direct training
 - **Mini-batch training** - Train on large datasets with configurable batch sizes
-- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, Swish
+- **Multi-core parallelism** - Parallel candidate evaluation for custom networks via `ParallelEvaluator`
+- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, SiLU
 
 
 ### Available Models
@@ -113,7 +114,7 @@ model = EBGAClassifier(
     layers=[
         (64, 'leaky_relu'),
         (32, 'gelu'),
-        (10, 'swish'),
+        (10, 'silu'),
         (3, 'softmax')
     ],
     n_classes=3
@@ -142,6 +143,7 @@ EBGA exposes low-level components for building custom neural networks from scrat
 from EBGA.nn import Sequential
 from EBGA.layers import Dense
 from EBGA.optimizer import CompactEvoOptimizer
+from EBGA.parallel import ParallelEvaluator
 import numpy as np
 
 # Build a custom network
@@ -154,26 +156,29 @@ network = Sequential(
 # Initialize the network with input size
 network.initialize(input_size=10)
 
-# Train the network
+# Create optimizer
 optimizer = CompactEvoOptimizer(
     param_dim=network.parameter_count(),
     lr_mu=0.05,
     lr_sigma=0.005
 )
+optimizer.initialize(network.get_all_parameters())
 
-# Get initial parameters
-params = network.get_all_parameters()
-optimizer.initialize(params)
+# Create parallel evaluator for multi-core candidate evaluation
+evaluator = ParallelEvaluator(
+    network, X_train, y_train,
+    loss='mse',
+    n_jobs=4,          # number of worker processes
+    batch_size=None,   # None = full dataset per step
+)
 
-# Define loss function
-def loss_func(params):
-    network.set_all_parameters(params)
-    y_pred = network.forward(X_train)
-    return np.mean((y_pred - y_train) ** 2)
+# Optional: layer-wise pretraining before fine-tuning (parallelized per layer)
+# network.layerwise_pretrain(X_train, y_train, loss='mse', layer_iters=500, n_jobs=4)
 
-# Train
-for iteration in range(1000):
-    optimizer.step(loss_func, iteration=iteration)
+# Train with parallel candidate evaluation
+with evaluator:
+    for iteration in range(1000):
+        optimizer.step(iteration=iteration, evaluate_map=evaluator.evaluate_map)
 
 # Get trained parameters
 best_params = optimizer.get_parameters()
@@ -182,6 +187,8 @@ network.set_all_parameters(best_params)
 # Make predictions
 y_pred = network.forward(X_test)
 ```
+
+For sequential evaluation (single-core), use `n_jobs=1` or omit the `ParallelEvaluator` entirely.
 
 
 ### Scale-Aware Initialization

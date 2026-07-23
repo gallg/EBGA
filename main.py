@@ -29,7 +29,8 @@ def run_diabetes_test():
 
 def run_california_housing_test():
     from tests.test_california_housing import run_test
-    return run_test()
+    r2 = run_test()
+    return r2, None  # baseline not computed in parallel test
 
 
 def main():
@@ -84,7 +85,10 @@ def main():
         if dataset in results:
             r2 = results[dataset]['r2']
             baseline = results[dataset]['baseline']
-            print(f"  {dataset:20s}: EBGA R² = {r2:.4f}, sklearn Baseline = {baseline:.4f}")
+            if baseline is not None:
+                print(f"  {dataset:20s}: EBGA R² = {r2:.4f}, sklearn Baseline = {baseline:.4f}")
+            else:
+                print(f"  {dataset:20s}: EBGA R² = {r2:.4f}")
     
     print("\n" + "=" * 70)
     print("All tests completed!")

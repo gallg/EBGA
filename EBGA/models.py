@@ -5,7 +5,7 @@ from sklearn.utils import check_random_state
 from sklearn.metrics import r2_score, accuracy_score
 from sklearn.preprocessing import LabelBinarizer
 
-from EBGA.nn import Sequential
+from EBGA.nn import Sequential, _make_loss_func
 from EBGA.layers import Dense
 from EBGA.losses import get_loss
 from EBGA.optimizer import CompactEvoOptimizer
@@ -149,114 +149,26 @@ class BaseModel(BaseEstimator):
             else:
                 loss_func = self._create_loss_func(X, y)
 
-        n_layers = len(self.network_.layers)
         self.network_.initialize(self.n_features_, scale_aware=y)
 
         optimizer_config = self._get_optimizer_config()
 
-        last_layer = self.network_.layers[-1]
-        output_size = last_layer.output_size
-        output_activation = last_layer.activation
-
-        if hasattr(output_activation, '__class__'):
-            activation_name = output_activation.__class__.__name__.lower()
-        else:
-            activation_name = str(output_activation).lower() if output_activation else None
+        # Phase 1: Greedy layer-wise pretraining via Sequential.layerwise_pretrain
+        n_layers = len(self.network_.layers)
+        layer_iters = self.max_iter // n_layers
 
         is_classification = hasattr(self, 'n_classes_') and self.n_classes_ is not None
-        if is_classification and activation_name != 'softmax':
-            temp_output_activation = 'softmax'
-        else:
-            temp_output_activation = output_activation
+        n_classes = self.n_classes_ if is_classification else None
 
-        # Phase 1: Greedy layer-wise pretraining
-        for layer_idx in range(n_layers):
-            partial_layers = []
-
-            for i in range(layer_idx + 1):
-                main_layer = self.network_.layers[i]
-                new_layer = Dense(main_layer.output_size, activation=main_layer.activation)
-                partial_layers.append(new_layer)
-
-            if layer_idx < n_layers - 1:
-                temp_output_layer = Dense(output_size, activation=temp_output_activation)
-                partial_layers.append(temp_output_layer)
-
-            partial_network = Sequential(*partial_layers)
-            partial_network.initialize(self.n_features_)
-
-            if layer_idx > 0:
-                main_params = self.network_.get_all_parameters()
-                partial_params = []
-                offset = 0
-                for i in range(layer_idx + 1):
-                    layer = self.network_.layers[i]
-                    layer_param_count = layer.parameter_count()
-                    partial_params.append(main_params[offset:offset + layer_param_count])
-                    offset += layer_param_count
-
-                if layer_idx < n_layers - 1:
-                    temp_param_count = partial_network.layers[-1].parameter_count()
-                    partial_params.append(
-                        self._random_state.randn(temp_param_count) * 0.01
-                    )
-
-                partial_network.set_all_parameters(np.concatenate(partial_params))
-
-            partial_optimizer = self.optimizer(
-                param_dim=partial_network.parameter_count(),
-                **optimizer_config
-            )
-
-            if self.batch_size is not None:
-                batches = self._create_batches(X, y)
-                batch_index = [0]
-
-                def partial_loss(params):
-                    idx = batch_index[0] % len(batches)
-                    X_batch, y_batch = batches[idx]
-                    batch_index[0] += 1
-
-                    current = partial_network.get_all_parameters()
-                    partial_network.set_all_parameters(params)
-                    y_pred = partial_network.forward(X_batch)
-                    if partial_network.output_size == 1:
-                        y_pred = y_pred.flatten()
-                    loss = self.loss_(y_pred, y_batch)
-                    partial_network.set_all_parameters(current)
-                    if np.any(np.abs(params) > 1e5):
-                        return float('inf')
-                    return loss
-            else:
-                def partial_loss(params):
-                    current = partial_network.get_all_parameters()
-                    partial_network.set_all_parameters(params)
-                    y_pred = partial_network.forward(X)
-                    if partial_network.output_size == 1:
-                        y_pred = y_pred.flatten()
-                    loss = self.loss_(y_pred, y)
-                    partial_network.set_all_parameters(current)
-                    if np.any(np.abs(params) > 1e5):
-                        return float('inf')
-                    return loss
-
-            partial_optimizer.initialize()
-            layer_iterations = self.max_iter // n_layers
-
-            for iteration in range(layer_iterations):
-                partial_optimizer.step(partial_loss, iteration=iteration)
-
-            trained_params = partial_network.get_all_parameters()
-            main_params = self.network_.get_all_parameters()
-
-            param_offset = 0
-            for i in range(layer_idx + 1):
-                layer_param_count = self.network_.layers[i].parameter_count()
-                main_params[param_offset:param_offset + layer_param_count] = \
-                    trained_params[param_offset:param_offset + layer_param_count]
-                param_offset += layer_param_count
-
-            self.network_.set_all_parameters(main_params)
+        self.network_.layerwise_pretrain(
+            X, y, loss=self.loss_,
+            n_classes=n_classes,
+            layer_iters=layer_iters,
+            optimizer_cls=self.optimizer,
+            optimizer_config=optimizer_config,
+            random_state=self._random_state,
+            verbose=False,
+        )
 
         # Phase 2: Fine-tuning all layers together
         final_iterations = self.max_iter // 2
@@ -302,18 +214,7 @@ class BaseModel(BaseEstimator):
         self.optimizer_ = final_optimizer
 
     def _create_loss_func(self, X, y):
-        def loss_func(params):
-            current = self.network_.get_all_parameters()
-            self.network_.set_all_parameters(params)
-            y_pred = self.network_.forward(X)
-            if self.network_.output_size == 1:
-                y_pred = y_pred.flatten()
-            loss = self.loss_(y_pred, y)
-            self.network_.set_all_parameters(current)
-            if np.any(np.abs(params) > 1e5):
-                return float('inf')
-            return loss
-        return loss_func
+        return _make_loss_func(self.network_, X, y, self.loss_)
 
     def _wrap_with_batching(self, loss_func, X, y):
         batches = self._create_batches(X, y)
@@ -329,16 +230,7 @@ class BaseModel(BaseEstimator):
 
     def _create_batched_loss_func(self, X, y):
         def base_loss(params, X_batch, y_batch):
-            current = self.network_.get_all_parameters()
-            self.network_.set_all_parameters(params)
-            y_pred = self.network_.forward(X_batch)
-            if self.network_.output_size == 1:
-                y_pred = y_pred.flatten()
-            loss = self.loss_(y_pred, y_batch)
-            self.network_.set_all_parameters(current)
-            if np.any(np.abs(params) > 1e5):
-                return float('inf')
-            return loss
+            return _make_loss_func(self.network_, X_batch, y_batch, self.loss_)(params)
 
         return self._wrap_with_batching(base_loss, X, y)
 
@@ -562,14 +454,7 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
 
     def _create_classification_loss_func(self, X, y_onehot):
         def class_base_loss(params, X_batch, y_batch):
-            current = self.network_.get_all_parameters()
-            self.network_.set_all_parameters(params)
-            y_pred = self.network_.forward(X_batch)
-            loss = self.loss_(y_pred, y_batch)
-            self.network_.set_all_parameters(current)
-            if np.any(np.abs(params) > 1e5):
-                return float('inf')
-            return loss
+            return _make_loss_func(self.network_, X_batch, y_batch, self.loss_)(params)
 
         if self.batch_size is not None:
             return self._wrap_with_batching(class_base_loss, X, y_onehot)

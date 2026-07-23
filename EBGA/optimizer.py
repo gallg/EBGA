@@ -6,13 +6,14 @@ class BaseEvoOptimizer:
 
     def __init__(self, param_dim, lr_mu=0.05, lr_sigma=0.005,
                  sigma_min=0.001, sigma_max=1.0,
-                 calibration_size=10, random_state=None):
+                 calibration_size=10, n_jobs=1, random_state=None):
         self.param_dim = param_dim
         self.lr_mu = lr_mu
         self.lr_sigma = lr_sigma
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.calibration_size = calibration_size
+        self.n_jobs = n_jobs
 
         if random_state is None:
             self.rng = np.random.RandomState()
@@ -31,9 +32,6 @@ class BaseEvoOptimizer:
         raise NotImplementedError
 
     def initialize(self, initial_params=None):
-        raise NotImplementedError
-
-    def get_distribution_parameters(self):
         raise NotImplementedError
 
     def state_dict(self):
@@ -72,6 +70,11 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         Momentum coefficient for velocity-based updates. If 0, no momentum.
     trust_region_radius : float, default=None
         Maximum allowed update norm (L2) per step. None or 0 disables.
+    n_jobs : int, default=1
+        Number of parallel workers for candidate evaluation. Passed through
+        to ``ParallelEvaluator`` when used together. The optimizer itself
+        does not manage parallelism — use ``ParallelEvaluator`` to wrap
+        the loss function for data-parallel evaluation across workers.
     random_state : RandomState, optional
         Random number generator.
     """
@@ -80,10 +83,10 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
                  sigma_min=0.001, sigma_max=1.0,
                  calibration_size=10,
                  momentum=0.5, trust_region_radius=None,
-                 random_state=None):
+                 n_jobs=1, random_state=None):
 
         super().__init__(param_dim, lr_mu, lr_sigma, sigma_min, sigma_max,
-                        calibration_size, random_state)
+                        calibration_size, n_jobs, random_state)
 
         self.momentum = momentum
         self.trust_region_radius = trust_region_radius
@@ -107,12 +110,32 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             update = update * (self.trust_region_radius / (norm + 1e-8))
         return update
 
-    def step(self, loss_func, iteration=None):
+    def step(self, loss_func=None, iteration=None, evaluate_map=None):
+        """
+        Perform one optimization step.
+
+        Parameters
+        ----------
+        loss_func : callable, optional
+            Loss function: ``loss_func(params) -> float``. Required when
+            ``evaluate_map`` is not provided.
+        iteration : int, optional
+            Current iteration number (used by some schedulers).
+        evaluate_map : callable, optional
+            If provided, used to evaluate all candidates in parallel.
+            Signature: ``evaluate_map(candidates) -> np.ndarray`` where
+            ``candidates`` is a list of parameter vectors and the return
+            value is an array of loss values. When None, candidates are
+            evaluated sequentially via ``loss_func``.
+        """
         pop_size = self.calibration_size
         noise = self.rng.randn(pop_size, self.param_dim)
         candidates = self.mu + self.sigma * noise
 
-        losses = np.array([loss_func(p) for p in candidates])
+        if evaluate_map is not None:
+            losses = np.array(evaluate_map(candidates))
+        else:
+            losses = np.array([loss_func(p) for p in candidates])
 
         # Softmax-weighted recombination
         centered = losses - np.mean(losses)
@@ -143,9 +166,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
     def get_parameters(self):
         return self.mu
 
-    def get_distribution_parameters(self):
-        return self.mu, self.sigma
-
     def set_parameters(self, params):
         self.mu = np.array(params)
         if self.momentum > 0:
@@ -162,6 +182,7 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
             'sigma_max': self.sigma_max,
             'momentum': self.momentum,
             'trust_region_radius': self.trust_region_radius,
+            'n_jobs': self.n_jobs,
         }
 
     def load_state_dict(self, state_dict):
@@ -174,3 +195,4 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         self.sigma_max = state_dict.get('sigma_max', self.sigma_max)
         self.momentum = state_dict.get('momentum', self.momentum)
         self.trust_region_radius = state_dict.get('trust_region_radius', self.trust_region_radius)
+        self.n_jobs = state_dict.get('n_jobs', 1)

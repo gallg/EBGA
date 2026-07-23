@@ -54,18 +54,9 @@ def get_loss(name):
     return LOSS_REGISTRY[name]()
 
 
-# Functional API
-def mse_loss(y_pred, y_true):
-    return MSE().forward(y_pred, y_true)
-
-
-def mae_loss(y_pred, y_true):
-    return MAE().forward(y_pred, y_true)
-
-
-def cross_entropy_loss(y_pred, y_true):
-    return CrossEntropy().forward(y_pred, y_true)
-
-
-def bce_loss(y_pred, y_true):
-    return BinaryCrossEntropy().forward(y_pred, y_true)
+def _loss_class_to_name(cls):
+    """Convert a loss class to its registry key name."""
+    for name, klass in LOSS_REGISTRY.items():
+        if klass is cls:
+            return name
+    return cls.__name__.lower()

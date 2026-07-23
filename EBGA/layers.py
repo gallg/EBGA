@@ -100,12 +100,3 @@ class Flatten(Layer):
     
     def parameter_count(self):
         return 0
-
-
-# Factory functions
-def dense(output_size, activation=None, use_bias=True):
-    return Dense(output_size, activation=activation, use_bias=use_bias)
-
-
-def flatten():
-    return Flatten()
