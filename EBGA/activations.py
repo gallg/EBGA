@@ -17,8 +17,17 @@ class ReLU(Activation):
 
 
 class Sigmoid(Activation):
+    """
+    Sigmoid activation function.
+    
+    f(x) = 1 / (1 + exp(-x))
+    
+    Input is clipped to [-700, inf) to avoid overflow in exp(-x).
+    """
     
     def forward(self, x):
+        # Clip to avoid overflow in exp(-x) for very negative inputs
+        x = np.where(x < -700, -700, x)
         return 1 / (1 + np.exp(-x))
 
 
@@ -115,14 +124,18 @@ class GELU(Activation):
         return 0.5 * x * (1 + np.tanh(inner))
 
 
-class Swish(Activation):
+class SiLU(Activation):
     """
-    Swish activation function.
+    Sigmoid Linear Unit activation function.
     
     f(x) = x * sigmoid(x) = x / (1 + exp(-x))
+    
+    Input is clipped to [-700, inf) to avoid overflow in exp(-x).
     """
     
     def forward(self, x):
+        # Clip to avoid overflow in exp(-x) for very negative inputs
+        x = np.where(x < -700, -700, x)
         return x / (1 + np.exp(-x))
 
 
@@ -137,7 +150,7 @@ ACTIVATION_REGISTRY = {
     'elu': ELU,
     'selu': SELU,
     'gelu': GELU,
-    'swish': Swish,
+    'silu': SiLU,
 }
 
 
@@ -147,42 +160,9 @@ def get_activation(name):
     return ACTIVATION_REGISTRY[name]()
 
 
-# Functional API for backward compatibility
-def relu(x):
-    return ReLU().forward(x)
-
-
-def sigmoid(x):
-    return Sigmoid().forward(x)
-
-
-def tanh(x):
-    return Tanh().forward(x)
-
-
-def linear(x):
-    return Linear().forward(x)
-
-
-def softmax(x, axis=-1):
-    return Softmax().forward(x, axis=axis)
-
-
-def leaky_relu(x, alpha=0.01):
-    return LeakyReLU(alpha=alpha).forward(x)
-
-
-def elu(x, alpha=1.0):
-    return ELU(alpha=alpha).forward(x)
-
-
-def selu(x, lambda_val=1.0507, alpha=1.67326):
-    return SELU(lambda_val=lambda_val, alpha=alpha).forward(x)
-
-
-def gelu(x):
-    return GELU().forward(x)
-
-
-def swish(x):
-    return Swish().forward(x)
+def _activation_class_to_name(cls):
+    """Convert an activation class to its registry key name."""
+    for name, obj in ACTIVATION_REGISTRY.items():
+        if obj is cls:
+            return name
+    return cls.__name__.lower()

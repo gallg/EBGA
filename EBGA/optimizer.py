@@ -34,9 +34,6 @@ class BaseEvoOptimizer:
     def initialize(self, initial_params=None):
         raise NotImplementedError
 
-    def get_distribution_parameters(self):
-        raise NotImplementedError
-
     def state_dict(self):
         raise NotImplementedError
 
@@ -168,9 +165,6 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
 
     def get_parameters(self):
         return self.mu
-
-    def get_distribution_parameters(self):
-        return self.mu, self.sigma
 
     def set_parameters(self, params):
         self.mu = np.array(params)

@@ -107,7 +107,7 @@ def run_test(random_state=42):
             n_iter=5,
             cv=inner_cv,
             scoring='r2',
-            n_jobs=None,
+            n_jobs=6,
             random_state=random_state + outer_fold * 1000,
             verbose=0
         )

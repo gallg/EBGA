@@ -16,7 +16,7 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 - **Flexible training modes** - Layer-wise or direct training
 - **Mini-batch training** - Train on large datasets with configurable batch sizes
 - **Multi-core parallelism** - Parallel candidate evaluation for custom networks via `ParallelEvaluator`
-- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, Swish
+- **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, SiLU
 
 
 ### Available Models
@@ -114,7 +114,7 @@ model = EBGAClassifier(
     layers=[
         (64, 'leaky_relu'),
         (32, 'gelu'),
-        (10, 'swish'),
+        (10, 'silu'),
         (3, 'softmax')
     ],
     n_classes=3
@@ -171,6 +171,9 @@ evaluator = ParallelEvaluator(
     n_jobs=4,          # number of worker processes
     batch_size=None,   # None = full dataset per step
 )
+
+# Optional: layer-wise pretraining before fine-tuning (parallelized per layer)
+# network.layerwise_pretrain(X_train, y_train, loss='mse', layer_iters=500, n_jobs=4)
 
 # Train with parallel candidate evaluation
 with evaluator:

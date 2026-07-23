@@ -117,7 +117,20 @@ output = network.forward(X)
 network.set_all_parameters(params)
 params = network.get_all_parameters()
 count = network.parameter_count()
+
+# Optional: greedy layer-wise pretraining
+network.layerwise_pretrain(X, y, loss='mse', layer_iters=500)
 ```
+
+**Methods:**<br>
+- `initialize(input_size, scale_aware=None)`: Initialize network parameters<br>
+- `forward(X)`: Forward pass through all layers<br>
+- `get_all_parameters()`: Get all network parameters as a flat array<br>
+- `set_all_parameters(params)`: Set all network parameters from a flat array<br>
+- `parameter_count()`: Total number of parameters<br>
+- `get_layer_parameters(layer_idx)`: Get parameters for a specific layer<br>
+- `copy_layer_parameters(source, layer_idx)`: Copy parameters for one layer from another network<br>
+- `layerwise_pretrain(X, y, loss, n_classes=None, layer_iters=500, optimizer_cls=None, optimizer_config=None, n_jobs=1, random_state=None, verbose=True)`: Greedy layer-wise pretraining. Trains each layer sequentially, building a partial network for each layer. After pretraining, the network is ready for fine-tuning with `optimizer.step()`. When `n_jobs > 1`, each layer's candidate evaluations are parallelized across `n_jobs` worker processes via a per-layer `ParallelEvaluator`.<br>
 
 ---
 
@@ -158,7 +171,7 @@ Available activation functions:<br>
 - ELU / elu (configurable alpha, default=1.0)<br>
 - SELU / selu (self-normalizing, default lambda=1.0507, alpha=1.67326)<br>
 - GELU / gelu (Gaussian error linear unit)<br>
-- Swish / swish (x * sigmoid(x))<br>
+- SiLU / silu (x * sigmoid(x))<br>
 - Sigmoid / sigmoid<br>
 - Tanh / tanh<br>
 - Linear / linear<br>
@@ -166,11 +179,11 @@ Available activation functions:<br>
 
 ```python
 from EBGA.activations import (
-    ReLU, LeakyReLU, ELU, SELU, GELU, Swish,
+    ReLU, LeakyReLU, ELU, SELU, GELU, SiLU,
     Sigmoid, Tanh, Linear, Softmax
 )
 from EBGA.activations import (
-    relu, leaky_relu, elu, selu, gelu, swish,
+    relu, leaky_relu, elu, selu, gelu, silu,
     sigmoid, tanh, linear, softmax, get_activation
 )
 

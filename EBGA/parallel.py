@@ -16,6 +16,8 @@ import numpy as np
 
 from EBGA.nn import Sequential
 from EBGA.layers import Dense, Flatten
+from EBGA.activations import _activation_class_to_name
+from EBGA.losses import _loss_class_to_name
 
 
 _WORKER = None
@@ -174,7 +176,7 @@ class ParallelEvaluator:
         if isinstance(loss, str):
             self._loss_name = loss
         else:
-            self._loss_name = type(loss).__name__.lower()
+            self._loss_name = _loss_class_to_name(type(loss))
 
         self._X = X
         self._y = y
@@ -260,6 +262,6 @@ def _serialize_network(network):
             elif isinstance(act, str):
                 info['activation'] = act
             else:
-                info['activation'] = type(act).__name__.lower()
+                info['activation'] = _activation_class_to_name(type(act))
         template.append(info)
     return template

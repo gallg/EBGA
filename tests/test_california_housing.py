@@ -2,6 +2,8 @@
 """
 Test ParallelEvaluator on California Housing with the same architecture
 and parameters as the existing test, but using the custom nn path.
+
+Supports optional layerwise training.
 """
 
 import time
@@ -16,11 +18,12 @@ from EBGA.optimizer import CompactEvoOptimizer
 from EBGA.parallel import ParallelEvaluator
 
 
-def run_test(random_state=42):
+def run_test(random_state=42, use_layerwise=False):
     np.random.seed(random_state)
 
     print("=" * 70)
     print("TEST: California Housing with ParallelEvaluator (6 jobs)")
+    print(f"      Layerwise: {use_layerwise}")
     print("=" * 70)
 
     # Load data
@@ -49,8 +52,7 @@ def run_test(random_state=42):
 
     # Use the best params from the existing test as a starting point
     # (lr_mu=0.005, lr_sigma=0.0005, momentum=0.5, calibration_size=20)
-    opt = CompactEvoOptimizer(
-        param_dim=net.parameter_count(),
+    opt_config = dict(
         calibration_size=20,
         lr_mu=0.005,
         lr_sigma=0.0005,
@@ -58,6 +60,27 @@ def run_test(random_state=42):
         sigma_max=1.0,
         momentum=0.5,
         trust_region_radius=None,
+        random_state=random_state,
+    )
+
+    overall_start = time.time()
+
+    # Phase 1: Optional layer-wise pretraining
+    if use_layerwise:
+        layer_iters = 500
+        print(f"\nLayer-wise pretraining ({layer_iters} iters per layer)...")
+        net.layerwise_pretrain(
+            X_scaled, y_normalized, loss='mse',
+            layer_iters=layer_iters,
+            optimizer_config=opt_config,
+            n_jobs=6,
+            random_state=random_state,
+        )
+
+    # Phase 2: Fine-tune / direct train with parallel evaluator
+    opt = CompactEvoOptimizer(
+        param_dim=net.parameter_count(),
+        **opt_config,
     )
     opt.initialize(net.get_all_parameters())
 
@@ -72,7 +95,8 @@ def run_test(random_state=42):
 
     # Train
     max_iter = 5000
-    print(f"\nTraining for {max_iter} iterations with batch_size=None, n_jobs=6...")
+    phase_label = "Fine-tuning" if use_layerwise else "Direct training"
+    print(f"\n{phase_label} for {max_iter} iterations with batch_size=None, n_jobs=6...")
     print(f"{'Iter':>6}  {'Loss':>12}  {'Elapsed':>10}")
     print("-" * 32)
 
@@ -86,7 +110,7 @@ def run_test(random_state=42):
                 elapsed = time.time() - start
                 print(f"{i+1:>6}  {loss:>12.6f}  {elapsed:>8.1f}s")
 
-    total_time = time.time() - start
+    total_time = time.time() - overall_start
     print("-" * 32)
     print(f"{max_iter:>6}  {losses[-1]:>12.6f}  {total_time:>8.1f}s")
 
