@@ -17,7 +17,7 @@ import numpy as np
 from EBGA.nn import Sequential
 from EBGA.layers import Dense, Flatten
 from EBGA.activations import _activation_class_to_name
-from EBGA.losses import _loss_class_to_name
+from EBGA.losses import _loss_class_to_name, get_loss
 
 
 _WORKER = None
@@ -48,7 +48,6 @@ class _WorkerState:
         self.X = X
         self.y = y
 
-        from EBGA.losses import get_loss
         self.loss = get_loss(loss_name) if isinstance(loss_name, str) else loss_name
 
         self.batch_size = batch_size
@@ -103,6 +102,11 @@ def _worker_evaluate(params):
     """Evaluate one candidate on this worker's data."""
     global _WORKER
     return _WORKER.evaluate(params)
+
+
+def _worker_evaluate_batch(candidates_batch):
+    """Evaluate a batch of candidates sequentially on this worker."""
+    return [_worker_evaluate(p) for p in candidates_batch]
 
 
 class ParallelEvaluator:
@@ -225,7 +229,14 @@ class ParallelEvaluator:
 
     def _parallel_map(self, candidates):
         """Evaluate all candidates in parallel across workers."""
-        return np.array(self._pool.map(_worker_evaluate, candidates))
+        # Split candidates into exactly n_jobs chunks to minimize IPC overhead.
+        # Each worker evaluates its chunk sequentially.
+        n = len(candidates)
+        k = min(self.n_jobs, n)
+        chunk_size = (n + k - 1) // k
+        chunks = [candidates[i:i + chunk_size] for i in range(0, n, chunk_size)]
+        results = self._pool.map(_worker_evaluate_batch, chunks)
+        return np.concatenate(results)
 
     def __enter__(self):
         if self.n_jobs > 1 and self._pool is None:

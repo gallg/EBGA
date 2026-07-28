@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -86,9 +88,6 @@ class BaseModel(BaseEstimator):
         for param, value in params.items():
             if hasattr(self, param):
                 setattr(self, param, value)
-            else:
-                if '__' in param:
-                    pass
         return self
 
     def _get_optimizer_config(self):
@@ -509,7 +508,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
             if output.shape[1] == 1:
                 return (output >= 0.5).astype(int).flatten()
             elif self.n_classes_ == 2 and output.shape[1] == 2:
-                import warnings
                 warnings.warn(
                     f"Sigmoid activation with 2 output neurons for {self.n_classes_}-class "
                     f"classification is non-standard. Falling back to argmax.",
@@ -517,7 +515,6 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
                 )
                 return np.argmax(output, axis=1)
             else:
-                import warnings
                 warnings.warn(
                     f"Sigmoid activation with {self.n_classes_} classes is non-standard. "
                     f"Falling back to argmax.",

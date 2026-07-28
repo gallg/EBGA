@@ -1,6 +1,7 @@
 import numpy as np
 
 from EBGA.layers import Dense
+from EBGA.losses import get_loss
 from EBGA.optimizer import CompactEvoOptimizer
 
 
@@ -141,7 +142,6 @@ class Sequential:
             optimizer_config = {}
 
         if isinstance(loss, str):
-            from EBGA.losses import get_loss
             loss = get_loss(loss)
 
         n_layers = len(self.layers)

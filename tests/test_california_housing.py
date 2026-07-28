@@ -43,7 +43,8 @@ def run_test(random_state=42, use_layerwise=False):
 
     # Build network: same architecture as the test: [(3, 'sigmoid'), (1, 'linear')]
     net = Sequential(
-        Dense(3, activation='sigmoid'),
+        Dense(12, activation='sigmoid'),
+        Dense(6, activation='sigmoid'),
         Dense(1, activation='linear'),
     )
     net.initialize(X_scaled.shape[1], scale_aware=y_normalized)
@@ -55,7 +56,7 @@ def run_test(random_state=42, use_layerwise=False):
     opt_config = dict(
         calibration_size=20,
         lr_mu=0.005,
-        lr_sigma=0.0005,
+        lr_sigma=0.005,
         sigma_min=0.001,
         sigma_max=1.0,
         momentum=0.5,

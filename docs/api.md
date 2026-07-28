@@ -180,20 +180,13 @@ Available activation functions:<br>
 ```python
 from EBGA.activations import (
     ReLU, LeakyReLU, ELU, SELU, GELU, SiLU,
-    Sigmoid, Tanh, Linear, Softmax
-)
-from EBGA.activations import (
-    relu, leaky_relu, elu, selu, gelu, silu,
-    sigmoid, tanh, linear, softmax, get_activation
+    Sigmoid, Tanh, Linear, Softmax,
+    get_activation,
 )
 
 # As classes
 activation = LeakyReLU(alpha=0.03)
 output = activation(x)
-
-# As functions
-output = leaky_relu(x, alpha=0.01)
-output = gelu(x)
 
 # Get by name
 activation = get_activation('leaky_relu')
@@ -211,15 +204,11 @@ Available loss functions:<br>
 - BinaryCrossEntropy / bce_loss<br>
 
 ```python
-from EBGA.losses import MSE, MAE, CrossEntropy, BinaryCrossEntropy
-from EBGA.losses import mse_loss, mae_loss, cross_entropy_loss, bce_loss, get_loss
+from EBGA.losses import MSE, MAE, CrossEntropy, BinaryCrossEntropy, get_loss
 
 # As classes
 loss = MSE()
 value = loss(y_pred, y_true)
-
-# As functions
-value = mse_loss(y_pred, y_true)
 
 # Get by name
 loss_fn = get_loss('mse')
