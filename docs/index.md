@@ -15,7 +15,7 @@ EBGA provides a scikit-learn compatible interface for both regression and classi
 - **Handles non-differentiable losses** - Works with any loss function
 - **Flexible training modes** - Layer-wise or direct training
 - **Mini-batch training** - Train on large datasets with configurable batch sizes
-- **Multi-core parallelism** - Parallel candidate evaluation for custom networks via `ParallelEvaluator`
+- **Multi-core parallelism** - Data-parallel evaluation for custom networks via `ParallelEvaluator`
 - **Rich activation functions** - 10 built-in activation functions including ReLU, LeakyReLU, ELU, SELU, GELU, SiLU
 
 
@@ -153,8 +153,8 @@ network = Sequential(
     Dense(1, activation='linear')
 )
 
-# Initialize the network with input size
-network.initialize(input_size=10)
+# Initialize the network with input size (pass rng for reproducibility)
+network.initialize(input_size=10, rng=np.random.RandomState(42))
 
 # Create optimizer
 optimizer = CompactEvoOptimizer(
@@ -164,7 +164,7 @@ optimizer = CompactEvoOptimizer(
 )
 optimizer.initialize(network.get_all_parameters())
 
-# Create parallel evaluator for multi-core candidate evaluation
+# Create a data-parallel evaluator for multi-core training
 evaluator = ParallelEvaluator(
     network, X_train, y_train,
     loss='mse',
@@ -175,7 +175,9 @@ evaluator = ParallelEvaluator(
 # Optional: layer-wise pretraining before fine-tuning (parallelized per layer)
 # network.layerwise_pretrain(X_train, y_train, loss='mse', layer_iters=500, n_jobs=4)
 
-# Train with parallel candidate evaluation
+# Train with parallel evaluation. Each step the dataset is sharded across the
+# workers; every worker scores all candidates on its shard and the mean losses
+# are reduced exactly, so results match single-core to floating-point.
 with evaluator:
     for iteration in range(1000):
         optimizer.step(iteration=iteration, evaluate_map=evaluator.evaluate_map)
@@ -188,7 +190,9 @@ network.set_all_parameters(best_params)
 y_pred = network.forward(X_test)
 ```
 
-For sequential evaluation (single-core), use `n_jobs=1` or omit the `ParallelEvaluator` entirely.
+For sequential evaluation (single-core), use `n_jobs=1` or omit the `ParallelEvaluator` entirely. The evaluator also falls back to single-core automatically when the dataset (or mini-batch) is too small to benefit from sharding, so `n_jobs > 1` is never slower than `n_jobs = 1` for small networks.
+
+Note: `ParallelEvaluator` is for the custom `nn.Sequential` training path only. The scikit-learn compatible estimators (`EBGARegressor`/`EBGAClassifier`) rely on scikit-learn's own `n_jobs` (e.g. in `GridSearchCV`); do not set EBGA-level `n_jobs` on those.
 
 
 ### Scale-Aware Initialization

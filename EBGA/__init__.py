@@ -15,7 +15,7 @@ from EBGA.optimizer import BaseEvoOptimizer, CompactEvoOptimizer
 from EBGA.parallel import ParallelEvaluator
 from EBGA.utils import save_model, load_model, save_network, load_network
 
-__version__ = "0.2.2"
+__version__ = "0.2.4"
 
 __all__ = [
     # Models

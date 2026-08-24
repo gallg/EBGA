@@ -46,9 +46,4 @@ class Dataset:
 
         for i in range(0, len(indices), batch_size):
             batch_indices = indices[i:i + batch_size]
-            X_list, y_list = [], []
-            for idx in batch_indices:
-                X_sample, y_sample = self[idx]
-                X_list.append(X_sample)
-                y_list.append(y_sample)
-            yield np.array(X_list), np.array(y_list)
+            yield self.X[batch_indices], self.y[batch_indices]

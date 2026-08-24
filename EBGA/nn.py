@@ -1,6 +1,7 @@
 import numpy as np
 
 from EBGA.layers import Dense
+from EBGA.losses import get_loss
 from EBGA.optimizer import CompactEvoOptimizer
 
 
@@ -26,18 +27,22 @@ class Sequential:
         self.layers = list(layers)
         self.initialized = False
     
-    def initialize(self, input_size, scale_aware=None):
+    def initialize(self, input_size, scale_aware=None, rng=None):
         """
         Initialize network parameters.
 
         Args:
-            input_size: Number of input features
+            input_size: Number of input features.
             scale_aware: Target values for scale-aware output initialization.
-                       If provided, the last parameter is set to mean(scale_aware).
+                If provided, the last layer's bias is set to mean(scale_aware).
+            rng: np.random.RandomState for reproducible weight initialization.
+                If None, a fresh RandomState is used.
         """
+        if rng is None:
+            rng = np.random.RandomState()
         current_size = input_size
-        for i, layer in enumerate(self.layers):
-            layer.initialize(current_size)
+        for layer in self.layers:
+            layer.initialize(current_size, rng=rng)
             current_size = layer.output_size
         self.initialized = True
         self.input_size = input_size
@@ -45,19 +50,17 @@ class Sequential:
 
         if scale_aware is not None:
             all_params = self.get_all_parameters()
-            # Set the bias of the last layer to the mean of the target.
-            # For multi-output layers, set all bias elements.
             last_layer = self.layers[-1]
             if last_layer.parameter_count() > 0:
                 n_bias = last_layer.output_size if hasattr(last_layer, 'use_bias') and last_layer.use_bias else 0
                 if n_bias > 0:
                     all_params[-n_bias:] = float(np.mean(scale_aware))
             self.set_all_parameters(all_params)
-    
+
     def forward(self, x):
         if not self.initialized:
             self.initialize(x.shape[1])
-        
+
         output = x
         for layer in self.layers:
             output = layer.forward(output)
@@ -141,7 +144,6 @@ class Sequential:
             optimizer_config = {}
 
         if isinstance(loss, str):
-            from EBGA.losses import get_loss
             loss = get_loss(loss)
 
         n_layers = len(self.layers)
@@ -162,6 +164,11 @@ class Sequential:
         if verbose:
             print(f"Layer-wise pretraining ({n_layers} layers, {layer_iters} iters each)")
 
+        if isinstance(random_state, np.random.RandomState):
+            init_rng = random_state
+        else:
+            init_rng = np.random.RandomState(random_state)
+
         for layer_idx in range(n_layers):
             if verbose:
                 print(f"  Training layer {layer_idx + 1}/{n_layers}...")
@@ -178,7 +185,7 @@ class Sequential:
                 partial_layers.append(temp_output)
 
             partial_net = Sequential(*partial_layers)
-            partial_net.initialize(X.shape[1])
+            partial_net.initialize(X.shape[1], rng=init_rng)
 
             # Copy already-trained params from main network
             if layer_idx > 0:
@@ -191,8 +198,7 @@ class Sequential:
                     offset += pc
                 if layer_idx < n_layers - 1:
                     temp_pc = partial_net.layers[-1].parameter_count()
-                    rng = np.random.RandomState(random_state)
-                    partial_params.append(rng.randn(temp_pc) * 0.01)
+                    partial_params.append(init_rng.randn(temp_pc) * 0.01)
                 partial_net.set_all_parameters(np.concatenate(partial_params))
 
             # Create optimizer for this partial network

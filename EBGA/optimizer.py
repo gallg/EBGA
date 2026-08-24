@@ -155,10 +155,9 @@ class CompactEvoOptimizer(BaseEvoOptimizer):
         update = self._apply_trust_region(update)
         self.mu += update
 
-        # Sigma adaptation
-        weighted_dev = np.sqrt(np.sum(weights[:, None] * (candidates - self.mu)**2, axis=0))
-        sigma_target = np.clip(weighted_dev, self.sigma_min, self.sigma_max)
-        self.sigma += self.lr_sigma * (sigma_target - self.sigma)
+        # Sigma adaptation (SNES natural gradient)
+        grad_sigma = np.sum(weights[:, None] * (noise**2 - 1), axis=0)
+        self.sigma *= np.exp(self.lr_sigma * grad_sigma)
         self.sigma = np.clip(self.sigma, self.sigma_min, self.sigma_max)
 
         return np.mean(losses)
