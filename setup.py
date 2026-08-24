@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="EBGA",
-    version="0.2.3",
+    version="0.2.4",
     author="Giuseppe Gallitto",
     description="Evolutionary-Based Generative Adaptation",
     long_description=long_description,
