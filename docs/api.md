@@ -112,7 +112,7 @@ from EBGA.nn import Sequential
 from EBGA.layers import Dense
 
 network = Sequential(layer1, layer2, ..., layerN)
-network.initialize(input_size)
+network.initialize(input_size, rng=random_state)
 output = network.forward(X)
 network.set_all_parameters(params)
 params = network.get_all_parameters()
@@ -123,14 +123,14 @@ network.layerwise_pretrain(X, y, loss='mse', layer_iters=500)
 ```
 
 **Methods:**<br>
-- `initialize(input_size, scale_aware=None)`: Initialize network parameters<br>
+- `initialize(input_size, scale_aware=None, rng=None)`: Initialize network parameters. `scale_aware` sets the last layer's bias to `mean(scale_aware)`. `rng` (a `np.random.RandomState`) controls weight initialization for reproducibility; if `None`, a fresh `RandomState` is used<br>
 - `forward(X)`: Forward pass through all layers<br>
 - `get_all_parameters()`: Get all network parameters as a flat array<br>
 - `set_all_parameters(params)`: Set all network parameters from a flat array<br>
 - `parameter_count()`: Total number of parameters<br>
 - `get_layer_parameters(layer_idx)`: Get parameters for a specific layer<br>
 - `copy_layer_parameters(source, layer_idx)`: Copy parameters for one layer from another network<br>
-- `layerwise_pretrain(X, y, loss, n_classes=None, layer_iters=500, optimizer_cls=None, optimizer_config=None, n_jobs=1, random_state=None, verbose=True)`: Greedy layer-wise pretraining. Trains each layer sequentially, building a partial network for each layer. After pretraining, the network is ready for fine-tuning with `optimizer.step()`. When `n_jobs > 1`, each layer's candidate evaluations are parallelized across `n_jobs` worker processes via a per-layer `ParallelEvaluator`.<br>
+- `layerwise_pretrain(X, y, loss, n_classes=None, layer_iters=500, optimizer_cls=None, optimizer_config=None, n_jobs=1, random_state=None, verbose=True)`: Greedy layer-wise pretraining. Trains each layer sequentially, building a partial network for each layer. After pretraining, the network is ready for fine-tuning with `optimizer.step()`. When `n_jobs > 1`, each layer's evaluations run on a per-layer `ParallelEvaluator` (data-parallel), which falls back to single-core automatically for small layers.<br>
 
 ---
 
@@ -251,7 +251,7 @@ params = optimizer.get_parameters()
 - `calibration_size`: Population size per step (number of candidates sampled)<br>
 - `momentum`: Momentum coefficient for velocity-based parameter updates (default: 0.5)<br>
 - `trust_region_radius`: Maximum allowed update norm (L2) per step for stability<br>
-- `n_jobs`: Number of parallel workers for candidate evaluation (pass-through, used with `ParallelEvaluator`)<br>
+- `n_jobs`: Stored for serialization round-trips but not used by the optimizer itself. Parallel evaluation is configured via `ParallelEvaluator` on the custom-network path, not here<br>
 - `random_state`: Random seed<br>
 
 **Methods:**<br>
@@ -269,9 +269,11 @@ params = optimizer.get_parameters()
 
 #### ParallelEvaluator
 
-Parallel candidate evaluator for multi-core evolutionary optimization.
+Data-parallel evaluator for multi-core evolutionary optimization (custom `nn.Sequential` path only).
 
-Each worker holds a full copy of the network and dataset. Candidates are distributed across workers via `pool.map` and evaluated in parallel. All candidates within a step are evaluated on the same data (full dataset or same batch), so loss values are directly comparable.
+Each step, the dataset (or the current mini-batch) is sharded across workers. Every worker evaluates **all** candidates on its shard and returns `mean_loss * n_rows`; the parent reduces these to the exact mean loss over the full data. Because every candidate is scored on the same data, losses are directly comparable across candidates.
+
+Scaling is in the **data dimension**, so speedup is not capped by the population size (`calibration_size`). The number of workers actually used is capped to `min(n_jobs, max(1, step_size // 256))` — when the data is small the evaluator falls back to in-process sequential evaluation (zero IPC), so `n_jobs > 1` is never slower than `n_jobs = 1` for small networks or small datasets.
 
 ```python
 from EBGA.parallel import ParallelEvaluator
@@ -293,10 +295,10 @@ with evaluator:
 - `network`: Sequential network architecture (used as template for workers)<br>
 - `X`: Input features, shape `(n_samples, n_features)`<br>
 - `y`: Target values, shape `(n_samples,)` or `(n_samples, n_outputs)`<br>
-- `loss`: Loss function name (e.g. `'mse'`, `'mae'`, `'cross_entropy'`) or Loss instance<br>
-- `n_jobs`: Number of worker processes (default: 1, disables parallelism)<br>
-- `batch_size`: Mini-batch size per step. If `None`, uses full dataset<br>
-- `random_state`: Seed for worker-local random state<br>
+- `loss`: Loss function name (e.g. `'mse'`, `'mae'`, `'cross_entropy'`) or Loss instance. Must be a per-sample mean (all EBGA losses are)<br>
+- `n_jobs`: Number of worker processes (default: 1, disables parallelism). The effective count is capped by the data size<br>
+- `batch_size`: Mini-batch size per step. If `None`, uses full dataset. The mini-batch advances once per step and is shared by all candidates<br>
+- `random_state`: Seed for mini-batch shuffling<br>
 
 **Properties:**<br>
 - `evaluate_map`: Callable for `optimizer.step(evaluate_map=...)`. Evaluates all candidates in parallel.<br>
@@ -306,8 +308,9 @@ with evaluator:
 
 **Notes:**<br>
 - Use as a context manager (`with evaluator:`) to ensure proper cleanup<br>
-- BLAS threading is pinned to single-thread per process to prevent oversubscription<br>
-- For out-of-memory datasets, set `batch_size` so each step uses a mini-batch<br>
+- BLAS threading is pinned to single-thread per worker process to prevent oversubscription; the parent process is unaffected<br>
+- Each worker holds a copy of the full dataset, so peak memory scales with the effective worker count. For truly out-of-core datasets use `batch_size` to score a mini-batch per step instead of the full data<br>
+- For the scikit-learn compatible estimators, use scikit-learn's own `n_jobs` (e.g. in `GridSearchCV`); `ParallelEvaluator` does not apply there<br>
 
 ---
 

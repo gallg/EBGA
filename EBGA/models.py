@@ -58,13 +58,6 @@ class BaseModel(BaseEstimator):
         self.trust_region_radius = trust_region_radius
         self.batch_size = batch_size
 
-        self._random_state = None
-        self.network_ = None
-        self.optimizer_ = None
-        self.label_binarizer_ = None
-        self.n_features_ = None
-        self.n_classes_ = None
-
     def get_params(self, deep=True):
         return {
             'layers': self.layers,
@@ -148,7 +141,8 @@ class BaseModel(BaseEstimator):
             else:
                 loss_func = self._create_loss_func(X, y)
 
-        self.network_.initialize(self.n_features_, scale_aware=y)
+        self.network_.initialize(self.n_features_, scale_aware=y,
+                                  rng=self._random_state)
 
         optimizer_config = self._get_optimizer_config()
 
@@ -160,7 +154,7 @@ class BaseModel(BaseEstimator):
         n_classes = self.n_classes_ if is_classification else None
 
         self.network_.layerwise_pretrain(
-            X, y, loss=self.loss_,
+            X, y, loss=self._loss,
             n_classes=n_classes,
             layer_iters=layer_iters,
             optimizer_cls=self.optimizer,
@@ -193,7 +187,8 @@ class BaseModel(BaseEstimator):
             else:
                 loss_func = self._create_loss_func(X, y)
 
-        self.network_.initialize(self.n_features_, scale_aware=y)
+        self.network_.initialize(self.n_features_, scale_aware=y,
+                                  rng=self._random_state)
 
         optimizer_config = self._get_optimizer_config()
 
@@ -213,7 +208,7 @@ class BaseModel(BaseEstimator):
         self.optimizer_ = final_optimizer
 
     def _create_loss_func(self, X, y):
-        return _make_loss_func(self.network_, X, y, self.loss_)
+        return _make_loss_func(self.network_, X, y, self._loss)
 
     def _wrap_with_batching(self, loss_func, X, y):
         batches = self._create_batches(X, y)
@@ -229,7 +224,7 @@ class BaseModel(BaseEstimator):
 
     def _create_batched_loss_func(self, X, y):
         def base_loss(params, X_batch, y_batch):
-            return _make_loss_func(self.network_, X_batch, y_batch, self.loss_)(params)
+            return _make_loss_func(self.network_, X_batch, y_batch, self._loss)(params)
 
         return self._wrap_with_batching(base_loss, X, y)
 
@@ -299,9 +294,9 @@ class EBGARegressor(BaseModel, RegressorMixin):
 
         self._loss_str = loss if isinstance(loss, str) else None
         if isinstance(loss, str):
-            self.loss_ = get_loss(loss)
+            self._loss = get_loss(loss)
         else:
-            self.loss_ = loss
+            self._loss = loss
 
     def get_params(self, deep=True):
         params = super().get_params(deep)
@@ -315,9 +310,9 @@ class EBGARegressor(BaseModel, RegressorMixin):
         if 'loss' in params:
             loss = params.pop('loss')
             if isinstance(loss, str):
-                self.loss_ = get_loss(loss)
+                self._loss = get_loss(loss)
             else:
-                self.loss_ = loss
+                self._loss = loss
         super().set_params(**params)
         return self
 
@@ -429,9 +424,9 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
 
         self._loss_str = loss if isinstance(loss, str) else None
         if isinstance(loss, str):
-            self.loss_ = get_loss(loss)
+            self._loss = get_loss(loss)
         else:
-            self.loss_ = loss
+            self._loss = loss
 
     def get_params(self, deep=True):
         params = super().get_params(deep)
@@ -445,15 +440,15 @@ class EBGAClassifier(BaseModel, ClassifierMixin):
         if 'loss' in params:
             loss = params.pop('loss')
             if isinstance(loss, str):
-                self.loss_ = get_loss(loss)
+                self._loss = get_loss(loss)
             else:
-                self.loss_ = loss
+                self._loss = loss
         super().set_params(**params)
         return self
 
     def _create_classification_loss_func(self, X, y_onehot):
         def class_base_loss(params, X_batch, y_batch):
-            return _make_loss_func(self.network_, X_batch, y_batch, self.loss_)(params)
+            return _make_loss_func(self.network_, X_batch, y_batch, self._loss)(params)
 
         if self.batch_size is not None:
             return self._wrap_with_batching(class_base_loss, X, y_onehot)

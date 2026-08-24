@@ -1,17 +1,6 @@
 import multiprocessing as mp
 import os
 
-# Use 'spawn' start method so worker processes are fresh Python processes
-# that re-import this module. This ensures the BLAS thread-pinning below
-# runs before numpy is imported in each worker.
-mp.set_start_method('spawn', force=True)
-
-# Pin BLAS to single thread per process. Process-level parallelism via
-# multiprocessing means BLAS threading would cause oversubscription.
-for _var in ('OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'OMP_NUM_THREADS',
-             'NUMEXPR_NUM_THREADS'):
-    os.environ.setdefault(_var, '1')
-
 import numpy as np
 
 from EBGA.nn import Sequential
@@ -20,13 +9,29 @@ from EBGA.activations import _activation_class_to_name
 from EBGA.losses import _loss_class_to_name, get_loss
 
 
+# Minimum rows per worker. Below this, data-parallel sharding costs more in
+# IPC overhead than it saves in compute, so the worker count is capped (down
+# to 1, i.e. in-process sequential evaluation). This is what keeps small
+# networks / small datasets from being slower under n_jobs > 1.
+_MIN_SHARD = 256
+
+# BLAS backends are pinned to a single thread inside worker processes so that
+# process-level parallelism does not oversubscribe cores. These are set in the
+# parent right before spawning (spawn children inherit the environment) and
+# therefore apply to workers without capping BLAS threads in the parent, whose
+# numpy is already imported by then.
+_BLAS_THREAD_VARS = (
+    'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'OMP_NUM_THREADS',
+    'NUMEXPR_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS',
+)
+
 _WORKER = None
 
 
 class _WorkerState:
-    """Per-worker state: network, data, loss, and batching."""
+    """Per-worker state: network, full dataset, and loss."""
 
-    def __init__(self, network_template, X, y, loss_name, batch_size, seed):
+    def __init__(self, network_template, X, y, loss_name, seed):
         layers = []
         for info in network_template:
             ltype = info['type']
@@ -47,84 +52,110 @@ class _WorkerState:
         self.net.initialize(X.shape[1])
         self.X = X
         self.y = y
+        self.output_size = self.net.output_size
 
         self.loss = get_loss(loss_name) if isinstance(loss_name, str) else loss_name
 
-        self.batch_size = batch_size
-        self.rng = np.random.RandomState(seed)
+    def evaluate(self, candidates, X, y):
+        """
+        Evaluate every candidate on the given data slice.
 
-        if batch_size is not None:
-            self._make_batches()
-        else:
-            self.batches = None
-            self.batch_index = None
+        Returns ``(sums, n)`` where ``sums[i] = loss(candidate_i) * n`` and
+        ``n = X.shape[0]``. The caller reduces across slices by summing
+        ``sums`` and dividing by the total row count, which reproduces the
+        exact mean loss over the union of slices (all EBGA losses are sample
+        means).
+        """
+        n = X.shape[0]
+        if n == 0:
+            return np.zeros(len(candidates)), 0
 
-    def _make_batches(self):
-        n = self.X.shape[0]
-        indices = np.arange(n)
-        self.rng.shuffle(indices)
-        self.batches = [
-            (self.X[indices[i:i + self.batch_size]],
-             self.y[indices[i:i + self.batch_size]])
-            for i in range(0, n, self.batch_size)
-        ]
-        self.batch_index = [0]
-
-    def evaluate(self, params):
-        """Evaluate a single candidate on this worker's data (or current batch)."""
-        if self.batches is not None:
-            idx = self.batch_index[0] % len(self.batches)
-            X_b, y_b = self.batches[idx]
-            self.batch_index[0] += 1
-        else:
-            X_b, y_b = self.X, self.y
-
+        sums = np.empty(len(candidates))
         current = self.net.get_all_parameters()
-        self.net.set_all_parameters(params)
-        y_pred = self.net.forward(X_b)
-        if self.net.output_size == 1:
-            y_pred = y_pred.flatten()
-        loss = self.loss(y_pred, y_b)
-        self.net.set_all_parameters(current)
+        try:
+            for i, params in enumerate(candidates):
+                # Short-circuit exploded candidates before the forward pass.
+                if np.any(np.abs(params) > 1e5):
+                    sums[i] = np.inf
+                    continue
+                self.net.set_all_parameters(params)
+                y_pred = self.net.forward(X)
+                if self.output_size == 1:
+                    y_pred = y_pred.flatten()
+                sums[i] = float(self.loss(y_pred, y)) * n
+        finally:
+            self.net.set_all_parameters(current)
+        return sums, n
 
-        if np.any(np.abs(params) > 1e5):
-            return float('inf')
-        return loss
+    def evaluate_shard(self, candidates, shard_idx, n_shards):
+        """Evaluate candidates on a contiguous shard of the full dataset."""
+        n = self.X.shape[0]
+        base = n // n_shards
+        rem = n % n_shards
+        if shard_idx < rem:
+            start = shard_idx * (base + 1)
+            end = start + base + 1
+        else:
+            start = rem * (base + 1) + (shard_idx - rem) * base
+            end = start + base
+        return self.evaluate(candidates, self.X[start:end], self.y[start:end])
 
 
-def _init_worker(network_template, X, y, loss_name, batch_size, seed):
+def _init_worker(network_template, X, y, loss_name, seed):
     """Called once per worker via Pool(initializer=...)."""
     global _WORKER
-    _WORKER = _WorkerState(network_template, X, y, loss_name, batch_size, seed)
+    _WORKER = _WorkerState(network_template, X, y, loss_name, seed)
 
 
-def _worker_evaluate(params):
-    """Evaluate one candidate on this worker's data."""
-    global _WORKER
-    return _WORKER.evaluate(params)
+def _worker_eval_shard(args):
+    """Evaluate all candidates on this worker's shard of the full dataset."""
+    candidates, shard_idx, n_shards = args
+    return _WORKER.evaluate_shard(candidates, shard_idx, n_shards)
 
 
-def _worker_evaluate_batch(candidates_batch):
-    """Evaluate a batch of candidates sequentially on this worker."""
-    return [_worker_evaluate(p) for p in candidates_batch]
+def _worker_eval_chunk(args):
+    """Evaluate all candidates on an explicit data chunk (mini-batch shard)."""
+    candidates, Xc, yc = args
+    return _WORKER.evaluate(candidates, Xc, yc)
+
+
+def _split_chunks(X, y, k):
+    """Split (X, y) into ``k`` contiguous non-overlapping chunks."""
+    n = X.shape[0]
+    base = n // k
+    rem = n % k
+    chunks = []
+    start = 0
+    for i in range(k):
+        size = base + (1 if i < rem else 0)
+        end = start + size
+        chunks.append((X[start:end], y[start:end]))
+        start = end
+    return chunks
 
 
 class ParallelEvaluator:
     """
-    Parallel evaluator for candidate-based evolutionary optimization.
+    Data-parallel evaluator for candidate-based evolutionary optimization.
 
-    Each worker holds a full copy of the network and dataset. Candidates
-    are distributed across workers via ``pool.map`` and evaluated in
-    parallel. All candidates within a step are evaluated on the same data
-    (full dataset or same batch), so loss values are directly comparable.
+    Each step, the dataset (or the current mini-batch) is sharded across
+    workers. Every worker evaluates **all** candidates on its shard and
+    returns ``mean_loss * n_rows``; the parent reduces these to the exact
+    mean loss over the full data. Because every candidate is scored on the
+    same data, losses are directly comparable across candidates.
 
-    Provides near-linear speedup in the candidate dimension:
-    ``calibration_size`` candidates on ``n_jobs`` workers run
-    ~``min(n_jobs, calibration_size)`` times faster.
+    Scaling is in the **data dimension**, so speedup is not capped by the
+    population size (``calibration_size``): more workers keep helping as long
+    as there is data to shard. The number of workers actually used is capped
+    to ``min(n_jobs, max(1, step_size // 256))`` -- when the data is small
+    the evaluator falls back to in-process sequential evaluation (zero IPC),
+    so small networks and small datasets are not slowed by parallel
+    overhead.
 
-    For out-of-memory datasets, set ``batch_size`` so each step uses a
-    mini-batch instead of the full dataset. All workers share the same
-    batch index, so all candidates within a step see the same batch.
+    Memory: each worker holds a copy of the full dataset, so peak memory
+    scales with the effective worker count. For truly out-of-core datasets
+    use ``batch_size`` so each step scores a mini-batch instead of the full
+    data.
 
     Parameters
     ----------
@@ -137,15 +168,17 @@ class ParallelEvaluator:
         Target values.
     loss : str or Loss instance
         Loss function name (e.g. 'mse', 'mae', 'cross_entropy') or a
-        Loss instance. If a string, resolved via ``get_loss``.
+        Loss instance. If a string, resolved via ``get_loss``. Must be a
+        per-sample mean (all EBGA losses are).
     n_jobs : int, default=1
-        Number of worker processes. 1 disables parallelism.
+        Number of worker processes. 1 (or any value that yields a single
+        effective worker) disables parallelism and runs in-process.
     batch_size : int, optional
-        If set, each step uses a mini-batch of this size instead of the
-        full dataset. All candidates within a step are evaluated on the
-        same batch. The batch index advances each step.
+        If set, each step scores a mini-batch of this size instead of the
+        full dataset. The mini-batch advances once per step, shared by all
+        candidates. The mini-batch is itself sharded across workers.
     random_state : int, optional
-        Seed for worker-local random state (used for batch shuffling).
+        Seed for mini-batch shuffling.
 
     Examples
     --------
@@ -170,11 +203,9 @@ class ParallelEvaluator:
 
     def __init__(self, network, X, y, loss, n_jobs=1, batch_size=None,
                  random_state=None):
-        self.n_jobs = n_jobs
+        self.n_jobs = max(1, int(n_jobs))
         self.batch_size = batch_size
         self._pool = None
-        self._evaluate_map = None
-
         self._network_template = _serialize_network(network)
 
         if isinstance(loss, str):
@@ -182,67 +213,111 @@ class ParallelEvaluator:
         else:
             self._loss_name = _loss_class_to_name(type(loss))
 
-        self._X = X
-        self._y = y
+        self._X = np.asarray(X)
+        self._y = np.asarray(y)
         self._seed = random_state
 
-        if n_jobs <= 1:
+        # Cap the worker count to what the data can usefully shard. Below one
+        # full shard per worker we fall back to in-process evaluation.
+        step_size = self._X.shape[0] if batch_size is None else batch_size
+        self._n_eff = min(self.n_jobs, max(1, step_size // _MIN_SHARD))
+
+        # Mini-batch state, owned by the parent so the schedule is identical
+        # regardless of how many workers are used.
+        self._batch_rng = np.random.RandomState(self._seed)
+        self._batch_order = None
+        self._batch_pos = 0
+
+        # In-process state used when running sequentially (n_eff == 1).
+        self._seq_state = None
+
+        if self._n_eff <= 1:
             self._evaluate_map = self._sequential_map
         else:
-            self._init_pool()
+            self._evaluate_map = self._parallel_map
 
-    def _init_pool(self):
-        """Create the worker pool."""
-        rng = np.random.RandomState(self._seed)
-        self._pool = mp.Pool(
-            processes=self.n_jobs,
-            initializer=_init_worker,
-            initargs=(
-                self._network_template,
-                self._X,
-                self._y,
-                self._loss_name,
-                self.batch_size,
-                rng.randint(0, 2**31),
-            ),
-        )
+    def _ensure_seq_state(self):
+        if self._seq_state is None:
+            self._seq_state = _WorkerState(
+                self._network_template, self._X, self._y,
+                self._loss_name, self._seed or 0,
+            )
+        return self._seq_state
+
+    def _next_batch(self):
+        """Draw the mini-batch for the current step (shared by all candidates)."""
+        n = self._X.shape[0]
+        bs = self.batch_size
+        if self._batch_order is None or self._batch_pos + bs > n:
+            self._batch_order = self._batch_rng.permutation(n)
+            self._batch_pos = 0
+        idx = self._batch_order[self._batch_pos:self._batch_pos + bs]
+        self._batch_pos += bs
+        return self._X[idx], self._y[idx]
 
     @property
     def evaluate_map(self):
         """
         Batch evaluator for ``optimizer.step(evaluate_map=...)``.
 
-        Signature: ``evaluate_map(candidates) -> np.ndarray``
-
-        Evaluates all candidates in parallel across workers using
-        ``pool.map``. When ``n_jobs=1``, falls back to sequential evaluation.
+        Signature: ``evaluate_map(candidates) -> np.ndarray`` of loss values.
+        When the effective worker count is 1, runs in-process (no IPC).
         """
         return self._evaluate_map
 
     def _sequential_map(self, candidates):
-        """Evaluate all candidates sequentially (n_jobs=1)."""
-        state = _WorkerState(
-            self._network_template, self._X, self._y,
-            self._loss_name, self.batch_size, self._seed or 0,
-        )
-        return np.array([state.evaluate(p) for p in candidates])
+        """Evaluate all candidates in-process (no worker pool)."""
+        state = self._ensure_seq_state()
+        if self.batch_size is None:
+            sums, n = state.evaluate(candidates, self._X, self._y)
+        else:
+            Xb, yb = self._next_batch()
+            sums, n = state.evaluate(candidates, Xb, yb)
+        return sums / n
 
     def _parallel_map(self, candidates):
-        """Evaluate all candidates in parallel across workers."""
-        # Split candidates into exactly n_jobs chunks to minimize IPC overhead.
-        # Each worker evaluates its chunk sequentially.
-        n = len(candidates)
-        k = min(self.n_jobs, n)
-        chunk_size = (n + k - 1) // k
-        chunks = [candidates[i:i + chunk_size] for i in range(0, n, chunk_size)]
-        results = self._pool.map(_worker_evaluate_batch, chunks)
-        return np.concatenate(results)
+        """Evaluate all candidates by sharding the data across workers."""
+        if self._pool is None:
+            self._init_pool()
+
+        if self.batch_size is None:
+            k = self._n_eff
+            tasks = [(candidates, i, k) for i in range(k)]
+            results = self._pool.map(_worker_eval_shard, tasks)
+        else:
+            Xb, yb = self._next_batch()
+            k = self._n_eff
+            chunks = _split_chunks(Xb, yb, k)
+            tasks = [(candidates, Xc, yc) for Xc, yc in chunks]
+            results = self._pool.map(_worker_eval_chunk, tasks)
+
+        sums = np.zeros(len(candidates))
+        total_n = 0
+        for s, n in results:
+            sums += s
+            total_n += n
+        return sums / total_n
+
+    def _init_pool(self):
+        """Create the worker pool using a private 'spawn' context."""
+        for _var in _BLAS_THREAD_VARS:
+            os.environ.setdefault(_var, '1')
+        ctx = mp.get_context('spawn')
+        self._pool = ctx.Pool(
+            processes=self._n_eff,
+            initializer=_init_worker,
+            initargs=(
+                self._network_template,
+                self._X,
+                self._y,
+                self._loss_name,
+                self._seed or 0,
+            ),
+        )
 
     def __enter__(self):
-        if self.n_jobs > 1 and self._pool is None:
+        if self._n_eff > 1 and self._pool is None:
             self._init_pool()
-        if self.n_jobs > 1:
-            self._evaluate_map = self._parallel_map
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -254,7 +329,6 @@ class ParallelEvaluator:
             self._pool.close()
             self._pool.join()
             self._pool = None
-        self._evaluate_map = self._sequential_map
 
 
 def _serialize_network(network):

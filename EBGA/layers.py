@@ -3,13 +3,13 @@ from EBGA.activations import get_activation
 
 
 class Layer:
-    
+
     def __init__(self):
         self.input_size = None
         self.output_size = None
         self.initialized = False
-    
-    def initialize(self, input_size):
+
+    def initialize(self, input_size, rng=None):
         raise NotImplementedError
     
     def forward(self, x):
@@ -37,13 +37,15 @@ class Dense(Layer):
             self.activation = activation
         self.use_bias = use_bias
     
-    def initialize(self, input_size):
+    def initialize(self, input_size, rng=None):
         self.input_size = input_size
+        if rng is None:
+            rng = np.random.RandomState()
         limit = np.sqrt(6 / (self.input_size + self.output_size))
-        self.W = np.random.uniform(-limit, limit, (self.output_size, self.input_size))
+        self.W = rng.uniform(-limit, limit, (self.output_size, self.input_size))
         self.b = np.zeros(self.output_size) if self.use_bias else None
         self.initialized = True
-    
+
     def forward(self, x):
         if not self.initialized:
             self.initialize(x.shape[1])
@@ -82,11 +84,11 @@ class Flatten(Layer):
     def __init__(self):
         super().__init__()
     
-    def initialize(self, input_size):
+    def initialize(self, input_size, rng=None):
         self.input_size = input_size
         self.output_size = input_size
         self.initialized = True
-    
+
     def forward(self, x):
         if not self.initialized:
             self.initialize(x.shape[1])
