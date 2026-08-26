@@ -2,6 +2,9 @@
 
 **EBGA** (**E**volutionary-**B**ased **G**enerative **A**daptation) is a machine learning framework that provides an alternative to classical gradient-based methods. It uses evolutionary computation with softmax-weighted recombination (NES-style), enabling training of neural networks without computing objective function gradients.
 
+---
+**Disclaimer**: the current implementation is designed for predictive modeling and reinforcement learning. The evolutionary optimizer provided by this version of the package is not suitable for generative models.
+
 ## Installation
 
 ```bash
